@@ -27,18 +27,24 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           source = Path("database.py").read_text()
 
-          if not re.search(r"""['"]sender_id['"]\s*:\s*None""", source):
+          required = [
+              'self.client.rpc(',
+              '"room_bot_message"',
+              '"p_is_system": False',
+          ]
+          missing = [item for item in required if item not in source]
+          if missing:
               raise SystemExit(
-                  "database.py must insert bot messages with sender_id set to None."
+                  "database.py GameBot RPC implementation is incomplete: "
+                  + ", ".join(missing)
               )
 
-          if re.search(r"""['"]sender_id['"]\s*:\s*BOT_SENDER_ID""", source):
+          if '"is_system": True' in source and '"sender_id": BOT_SENDER_ID' in source:
               raise SystemExit(
-                  "Stale database.py detected: sender_id still uses BOT_SENDER_ID."
+                  "Stale direct room_messages bot insert detected."
               )
 
           print("Runtime source verification passed.")
