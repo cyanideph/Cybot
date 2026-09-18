@@ -47,7 +47,7 @@ class Database:
 
     def load_game_state(self)->list[dict[str,Any]]:
         sessions=self.client.table("game_sessions").select(
-            "id,room_name,game,mode,points,limit_count,endless,paused,question_number,question,answer,clue_text,used_questions"
+            "id,room_name,game,mode,current_game,points,limit_count,endless,paused,question_number,question,answer,clue_text,used_questions"
         ).order("id").execute().data or []
         if not sessions:return []
         players=self.client.table("game_players").select(
@@ -61,7 +61,7 @@ class Database:
 
     def save_game_state(self,state:dict[str,Any])->int:
         payload={
-            "room_name":state["room"],"game":state["game"],"mode":state.get("mode") or state["game"],
+            "room_name":state["room"],"game":state["game"],"mode":state.get("mode") or state["game"],"current_game":state.get("current_game") or state["game"],
             "points":int(state["points"]),"limit_count":int(state["limit"]),
             "endless":bool(state.get("endless")),"paused":bool(state["paused"]),
             "question_number":int(state["number"]),"question":state["question"],
