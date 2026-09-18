@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from supabase import create_client
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
