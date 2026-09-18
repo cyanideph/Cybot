@@ -11,9 +11,19 @@ def test_legacy_math_modes():
 
 def test_algebra_modes():
     e=GameEngine()
-    for mode in ("algebra1","algebra2","algebra3"):
-        s=e.start("room-"+mode,mode,10,100)
-        assert s.answer and mode in s.question
+    e1=e.start("room-algebra1","algebra1",10,100)
+    e2=e.start("room-algebra2","algebra2",10,100)
+    e3=e.start("room-algebra3","algebra3",10,100)
+
+    assert e1.answer and e1.mode==e1.current_game=="algebra1"
+    assert e2.answer and e2.mode==e2.current_game=="algebra2"
+    assert e3.answer and e3.mode==e3.current_game=="algebra3"
+
+    # Validate distinct algebra operators; internal mode names need not
+    # appear in human-facing question text.
+    assert " + " in e1.question
+    assert " - " in e2.question
+    assert " x " in e3.question
 
 def test_random_modes():
     e=GameEngine()
