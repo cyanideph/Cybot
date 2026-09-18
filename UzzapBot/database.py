@@ -50,3 +50,54 @@ class Database:
             r = self.client.table("profiles").select("id,username,nickname").eq("username", username).limit(1).execute()
             if r.data: return r.data[0]
         return None
+
+    def load_game_state(self) -> list[dict[str, Any]]:
+        sessions = self.client.table("game_sessions").select(
+            "id,room_name,game,points,limit_count,paused,question_number,question,answer,clue_text,used_questions"
+        ).order("id").execute().data or []
+        if not sessions:
+            return []
+        players = self.client.table("game_players").select(
+            "session_id,user_id,username,nickname,score,correct,attempts"
+        ).order("id").execute().data or []
+        by_session: dict[int, list[dict[str, Any]]] = {}
+        for player in players:
+            by_session.setdefault(int(player["session_id"]), []).append(player)
+        for session in sessions:
+            session["players"] = by_session.get(int(session["id"]), [])
+        return sessions
+
+    def save_game_state(self, state: dict[str, Any]) -> int:
+        payload = {
+            "room_name": state["room"],
+            "game": state["game"],
+            "points": int(state["points"]),
+            "limit_count": int(state["limit"]),
+            "paused": bool(state["paused"]),
+            "question_number": int(state["number"]),
+            "question": state["question"],
+            "answer": state["answer"],
+            "clue_text": state.get("clue_text", ""),
+            "used_questions": list(state.get("used_questions", [])),
+        }
+        existing = self.client.table("game_sessions").select("id").eq("room_name", state["room"]).limit(1).execute().data or []
+        if existing:
+            sid = int(existing[0]["id"])
+            self.client.table("game_sessions").update(payload).eq("id", sid).execute()
+        else:
+            sid = int(self.client.table("game_sessions").insert(payload).execute().data[0]["id"])
+        self.client.table("game_players").delete().eq("session_id", sid).execute()
+        rows = []
+        for p in state.get("players", []):
+            rows.append({
+                "session_id": sid, "user_id": p.get("user_id") or None,
+                "username": p["username"], "nickname": p["nickname"],
+                "score": int(p["score"]), "correct": int(p["correct"]),
+                "attempts": int(p["attempts"]),
+            })
+        if rows:
+            self.client.table("game_players").insert(rows).execute()
+        return sid
+
+    def delete_game_state(self, room: str) -> None:
+        self.client.table("game_sessions").delete().eq("room_name", room).execute()
