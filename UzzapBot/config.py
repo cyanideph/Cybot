@@ -8,7 +8,10 @@ ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip()
+# Phase 2 persistence needs a server-side key. Never put this key in GitHub,
+# Android code, or any client app. Keep it only in the local Pydroid .env.
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or os.getenv("SUPABASE_KEY", "").strip()
 BOT_NAME = os.getenv("BOT_NAME", "uzzapbot").strip()
 BOT_SENDER_ID = os.getenv("BOT_SENDER_ID", "").strip()
 ADMIN_IDS = {x.strip() for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
@@ -19,6 +22,6 @@ DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", "100"))
 DATA_DIR = ROOT / "data"
 
 def validate() -> None:
-    missing = [n for n,v in (("SUPABASE_URL",SUPABASE_URL),("SUPABASE_KEY",SUPABASE_KEY),("BOT_SENDER_ID",BOT_SENDER_ID)) if not v or v.startswith("YOUR_")]
+    missing = [n for n,v in (("SUPABASE_URL",SUPABASE_URL),("SUPABASE_SERVICE_ROLE_KEY",SUPABASE_SERVICE_ROLE_KEY),("BOT_SENDER_ID",BOT_SENDER_ID)) if not v or v.startswith("YOUR_")]
     if missing:
         raise RuntimeError("Missing configuration: " + ", ".join(missing))
