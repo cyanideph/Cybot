@@ -1,4 +1,4 @@
-"""Pydroid-safe Uzzap game engine using the original Gamebot data files."""
+"""Modern Pydroid-safe reconstruction of the legacy UzZAP Game Core 4 rules."""
 from __future__ import annotations
 import random, re, unicodedata
 from dataclasses import dataclass, field
@@ -27,124 +27,202 @@ class Session:
     number: int = 0
     players: dict[str, Player] = field(default_factory=dict)
     used_questions: set[str] = field(default_factory=set)
+    mode: str = ""
+    endless: bool = False
+    current_game: str = ""
+
+    def __post_init__(self):
+        if not self.mode: self.mode = self.game
+        if not self.current_game: self.current_game = self.game
 
 class GameEngine:
-    ALIASES = {"gta":"gtaforeign", "gta_foreign":"gtaforeign", "gta_opm":"gtaopm", "words":"wordhunt", "rebus":"logic"}
-    GAMES = {"math","mathminus","mathmultiply","algebra1","algebra2","algebra3","trivia","anime","gtaforeign","gtaopm","logic","wordhunt","tagalog","twist"}
+    ALIASES = {
+        "gta":"gtaforeign","gta_foreign":"gtaforeign","gta_opm":"gtaopm",
+        "words":"wordhunt","rebus":"logic","tt":"twist","texttwist":"twist",
+        "english":"wordhunt","english_wordhunt":"wordhunt",
+        "tagalog_wordhunt":"summonnight2","ph":"filipino",
+        "random":"random1","random4":"random3","gen-info-trivia":"trivia",
+    }
+    GAMES = {
+        "add","minus","multiply","add1","minus1","multiply1",
+        "algebra1","algebra2","algebra3","trivia","anime","gtaforeign",
+        "gtaopm","logic","wordhunt","summonnight","summonnight2",
+        "filipino","love","twist","random1","random2","random3",
+        "randomgta","math","algebra"
+    }
+    RANDOM1 = ("algebra1","algebra2","algebra3","add","minus","multiply",
+               "add1","minus1","multiply1","filipino","filipino","filipino","filipino",
+               "love","love","love","love","summonnight","summonnight","summonnight",
+               "summonnight","summonnight","summonnight2","summonnight2","summonnight2","summonnight2")
+    RANDOM2 = ("algebra1","algebra2","algebra3","add","minus","multiply","add1","minus1","multiply1",
+               "filipino","filipino","filipino","love","love","summonnight","summonnight","summonnight",
+               "summonnight","summonnight2","summonnight2","summonnight2",
+               "trivia","trivia","trivia","trivia","trivia","trivia","trivia",
+               "gtaopm","gtaopm","gtaopm","gtaopm","gtaforeign","gtaforeign","gtaforeign","gtaforeign")
+    RANDOM3 = RANDOM2 + ("logic","logic","logic","anime","anime","anime")
+    RANDOM_GTA = ("gtaforeign","gtaopm")
+    RANDOM_MATH = ("add","minus","multiply","add1","minus1","multiply1")
+    RANDOM_ALGEBRA = ("algebra1","algebra2","algebra3")
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.sessions = {}
-        self.datasets = {name:self._load(name) for name in ("Zgen-info.txt","Zanime-trivia.txt","Zgta-foreign.txt","Zgta-opm.txt","Zlogic.txt","words.txt","salita.txt")}
+        self.datasets = {n:self._load(n) for n in (
+            "Zgen-info.txt","Zanime-trivia.txt","Zgta-foreign.txt",
+            "Zgta-opm.txt","Zlogic.txt","words.txt","salita.txt")}
 
     def _load(self,name):
         p=Path(DATA_DIR)/name
         return [x.strip() for x in p.read_text(encoding="utf-8",errors="ignore").splitlines() if x.strip()] if p.exists() else []
 
+    def _normalize(self,value):
+        value=unicodedata.normalize("NFKC",str(value))
+        value=re.sub(r"\[[^\]]+\]","",value).casefold().strip()
+        return "".join(ch for ch in value if ch.isalnum())
+
     def _parse_qa(self,rows):
         out=[]
         for row in rows:
             parts=row.split(",",2)
-            if len(parts)>=3 and parts[1].strip() and parts[2].strip(): out.append((parts[1].strip(),parts[2].strip()))
+            if len(parts)==3:
+                ident,question,answer=(x.strip() for x in parts)
+                if question and answer: out.append((ident,question,answer))
         return out
-
-    def _normalize(self,value):
-        value=unicodedata.normalize("NFKC",value)
-        value=re.sub(r"\[[^\]]+\]","",value).casefold().strip()
-        return "".join(ch for ch in value if ch.isalnum())
 
     def _pick_qa(self,rows,used):
         qa=self._parse_qa(rows)
         if not qa: raise ValueError("dataset has no valid question/answer rows")
-        fresh=[q for q in qa if self._normalize(q[0]) not in used]
-        q=random.choice(fresh or qa); used.add(self._normalize(q[0])); return q
+        fresh=[x for x in qa if x[0] not in used and self._normalize(x[1]) not in used]
+        item=random.choice(fresh or qa)
+        used.add(item[0]); used.add(self._normalize(item[1]))
+        return item
 
-    def _pick_word(self,rows,used,min_len=1):
-        words=[w.strip() for w in rows if w.strip() and len(w.strip())>=min_len]
+    def _pick_word(self,rows,used,min_len,max_len=None):
+        words=[w.strip() for w in rows if len(w.strip())>=min_len and (max_len is None or len(w.strip())<=max_len)]
         if not words: raise ValueError("word dataset has no usable entries")
         fresh=[w for w in words if self._normalize(w) not in used]
         word=random.choice(fresh or words); used.add(self._normalize(word)); return word
 
-    def start(self,room,game,points=None,limit=None):
-        game=self.ALIASES.get(game.casefold(),game.casefold())
-        if game not in self.GAMES: raise ValueError(f"Unknown game: {game}")
-        points=DEFAULT_POINTS if points is None else points; limit=DEFAULT_LIMIT if limit is None else limit
+    def _scramble(self,word):
+        chars=list(word); original=self._normalize(word)
+        if len(chars)<2: return word
+        for _ in range(20):
+            random.shuffle(chars); candidate="".join(chars)
+            if self._normalize(candidate)!=original: return candidate
+        return word
+
+    def _random_game(self,mode):
+        pool={"random1":self.RANDOM1,"random2":self.RANDOM2,"random3":self.RANDOM3,
+              "randomgta":self.RANDOM_GTA,"math":self.RANDOM_MATH,"algebra":self.RANDOM_ALGEBRA}[mode]
+        return random.choice(pool)
+
+    def start(self,room,game,points=None,limit=None,endless=False):
+        requested=self.ALIASES.get(game.casefold(),game.casefold())
+        points=DEFAULT_POINTS if points is None else int(points)
+        limit=DEFAULT_LIMIT if limit is None else int(limit)
         if not 1<=points<=1000: raise ValueError("points must be between 1 and 1000")
-        if not 1<=limit<=1000: raise ValueError("limit must be between 1 and 1000")
-        s=Session(room,game,points,limit); self.sessions[room]=s; self._next(s); return s
+        if not endless and not 100<=limit<=5000: raise ValueError("score limit must be between 100 and 5000")
+        if requested not in self.GAMES: raise ValueError(f"Unknown game: {game}")
+        s=Session(room,requested,points,limit,mode=requested,endless=endless)
+        self.sessions[room]=s; self._next(s); return s
 
     def get(self,room): return self.sessions.get(room)
     def stop(self,room): self.sessions.pop(room,None)
 
+    def _build_question(self,s,game):
+        s.current_game=game; s.clue_text=""
+        if game in {"add","minus","multiply","add1","minus1","multiply1"}:
+            if game in {"add","minus","add1","minus1"}: a,b=random.randint(0,1000),random.randint(0,1000)
+            else: a,b=random.randint(1,100 if game=="multiply" else 10),random.randint(1,10 if game=="multiply" else 100)
+            if game in {"add","add1"}: result,op=a+b,"+"
+            elif game in {"minus","minus1"}: result,op=a-b,"-"
+            else: result,op=a*b,"x"
+            s.question=f"MATH: {a} {op} {b} = ?" if game in {"add","minus","multiply"} else f"MATH: {a} {op} ({b}) = ?"
+            s.answer=str(result); return
+        if game in {"algebra1","algebra2","algebra3"}:
+            a,b=random.randint(0,10),random.randint(1,10)
+            xcoef,ycoef=random.randint(1,10),random.randint(1,10)
+            if game=="algebra1": result=a*xcoef+b*ycoef; op="+"
+            elif game=="algebra2": result=a*xcoef-b*ycoef; op="-"
+            else: result=(a*xcoef)*(b*ycoef); op="x"
+            s.question=f"If X={xcoef} & Y={ycoef}, solve {a}X {op} {b}Y = ?"; s.answer=str(result); return
+        if game=="trivia":
+            _,s.question,s.answer=self._pick_qa(self.datasets["Zgen-info.txt"],s.used_questions); return
+        if game=="anime":
+            _,s.question,s.answer=self._pick_qa(self.datasets["Zanime-trivia.txt"],s.used_questions); return
+        if game=="gtaforeign":
+            _,title,s.answer=self._pick_qa(self.datasets["Zgta-foreign.txt"],s.used_questions)
+            s.question=f"TiTLE: '{title}'\n~> Guess The Artist"; return
+        if game=="gtaopm":
+            _,title,s.answer=self._pick_qa(self.datasets["Zgta-opm.txt"],s.used_questions)
+            s.question=f"TiTLE: '{title}'\n~> Guess The Artist [OPM]"; return
+        if game=="logic":
+            _,s.question,s.answer=self._pick_qa(self.datasets["Zlogic.txt"],s.used_questions); return
+        if game in {"wordhunt","summonnight"}:
+            word=self._pick_word(self.datasets["words.txt"],s.used_questions,3,8)
+            s.answer=word; s.question=f"ENG WordHunt: {self._scramble(word)}"; return
+        if game=="summonnight2":
+            word=self._pick_word(self.datasets["salita.txt"],s.used_questions,3,8)
+            s.answer=word; s.question=f"TAGALOG WordHunt: {self._scramble(word)}"; return
+        if game=="filipino":
+            word=self._pick_word(self.datasets["salita.txt"],s.used_questions,3,15)
+            s.answer=word; s.question=f"PINoy HENYO: {self._scramble(word)}"; return
+        if game in {"love","twist"}:
+            word=self._pick_word(self.datasets["words.txt"],s.used_questions,3,17)
+            s.answer=word; s.question=f"{'TT=>' if game=='twist' else 'LOVE'}: {self._scramble(word)}"; return
+        raise ValueError(f"Unsupported game: {game}")
+
     def _next(self,s):
-        if s.number>=s.limit: return self.finish(s)
-        s.number+=1; s.clue_text=""
-        if s.game in {"math","mathminus","mathmultiply"}:
-            a,b=random.randint(2,99),random.randint(2,20)
-            if s.game=="math": s.question=f"{a} + {b} = ?"; s.answer=str(a+b)
-            elif s.game=="mathminus":
-                if b>a: a,b=b,a
-                s.question=f"{a} - {b} = ?"; s.answer=str(a-b)
-            else: s.question=f"{a} x {b} = ?"; s.answer=str(a*b)
-        elif s.game=="algebra1":
-            x=random.randint(2,20); a=random.randint(2,9); b=a*x; s.question=f"Solve: {a}x = {b}"; s.answer=str(x)
-        elif s.game=="algebra2":
-            x=random.randint(2,20); a=random.randint(2,9); c=random.randint(1,15); b=a*x+c; s.question=f"Solve: {a}x + {c} = {b}"; s.answer=str(x)
-        elif s.game=="algebra3":
-            x=random.randint(2,20); a=random.randint(2,8); d=random.randint(1,a-1); c=random.randint(1,15); b=(a-d)*x+c; s.question=f"Solve: {a}x + {c} = {d}x + {b}"; s.answer=str(x)
-        elif s.game=="trivia":
-            q=self._pick_qa(self.datasets["Zgen-info.txt"],s.used_questions); s.question=q[0]; s.answer=q[1]
-        elif s.game=="anime":
-            q=self._pick_qa(self.datasets["Zanime-trivia.txt"],s.used_questions); s.question=q[0]; s.answer=q[1]
-        elif s.game=="gtaforeign":
-            q=self._pick_qa(self.datasets["Zgta-foreign.txt"],s.used_questions); s.question=f"Artist of: {q[0]}"; s.answer=q[1]
-        elif s.game=="gtaopm":
-            q=self._pick_qa(self.datasets["Zgta-opm.txt"],s.used_questions); s.question=f"Artist of: {q[0]}"; s.answer=q[1]
-        elif s.game=="logic":
-            q=self._pick_qa(self.datasets["Zlogic.txt"],s.used_questions); s.question=q[0]; s.answer=q[1]
-        else:
-            dataset="words.txt" if s.game!="tagalog" else "salita.txt"
-            word=self._pick_word(self.datasets[dataset],s.used_questions,5 if s.game!="tagalog" else 3)
-            s.answer=word; letters=list(word); scrambled=word
-            if len(letters)>1:
-                for _ in range(10):
-                    random.shuffle(letters); scrambled="".join(letters)
-                    if self._normalize(scrambled)!=self._normalize(word): break
-            prefix="Unscramble" if s.game=="wordhunt" else ("Tagalog scramble" if s.game=="tagalog" else "TWIST")
-            s.question=f"{prefix}: {scrambled}"
-        return self.repost(s.room)
+        if s.paused: return self.repost(s.room)
+        s.number+=1
+        game=self._random_game(s.mode) if s.mode in {"random1","random2","random3","randomgta","math","algebra"} else s.mode
+        self._build_question(s,game); return self.repost(s.room)
 
-    def next_question(self,s):
-        return "[c08]No active game." if not s else self._next(s)
+    def next_question(self,s): return "[c08]No active game." if not s else self._next(s)
 
-    def finish(self,s):
+    def _winner(self,s,p): return not s.endless and p.score>=s.limit
+
+    def finish(self,s,winner=None):
         s.paused=True
+        if winner: return f"[c10]{winner.nickname} WINS THE GAME!\n[c03]Score: {winner.score}"
         rows=sorted(s.players.values(),key=lambda p:(p.score,p.correct),reverse=True)
-        if not rows: return f"[c03]{s.game.upper()} COMPLETE\n[c01]No scores yet."
-        return f"[c03]{s.game.upper()} COMPLETE\n[c01]Final leaderboard\n" + "\n".join(f"{i}. {p.nickname} — {p.score}" for i,p in enumerate(rows[:10],1))
+        if not rows: return f"[c03]{s.mode.upper()} COMPLETE\n[c01]No scores yet."
+        return f"[c03]{s.mode.upper()} COMPLETE\n[c01]Final leaderboard\n"+"\n".join(f"{i}. {p.nickname} — {p.score}" for i,p in enumerate(rows[:10],1))
 
     def answer(self,room,uid,username,nickname,text):
         s=self.sessions.get(room)
         if not s or s.paused: return False,""
-        p=s.players.setdefault(uid,Player(uid,username,nickname)); p.nickname=nickname or p.nickname; p.username=username or p.username; p.attempts+=1
+        key=uid or username
+        p=s.players.setdefault(key,Player(uid,username,nickname))
+        p.nickname=nickname or p.nickname; p.username=username or p.username; p.attempts+=1
         if self._normalize(text)==self._normalize(s.answer):
-            p.correct+=1; p.score+=s.points; response=f"[c10]Correct, {nickname}! +{s.points} points."
-            response+="\n"+(self.finish(s) if s.number>=s.limit else self._next(s)); return True,response
+            p.correct+=1; p.score+=s.points
+            response=f"[c10]Correct, {p.nickname}! +{s.points} points."
+            response+="\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
+            return True,response
         return False,""
 
     def clue(self,room):
         s=self.sessions.get(room)
         if not s: return "[c08]No active game."
         if not s.answer: return "[c08]No clue available."
-        n=max(1,len(s.answer)//3); s.clue_text="".join(ch if i<n else "_" for i,ch in enumerate(s.answer))
-        return f"[c12]Clue: {s.clue_text}"
+        reveal=max(1,len(re.sub(r"\s+","",s.answer))//3); seen=0; out=[]
+        for ch in s.answer:
+            if ch.isspace() or not ch.isalnum(): out.append(ch)
+            elif seen<reveal: out.append(ch); seen+=1
+            else: out.append("_")
+        s.clue_text="".join(out); return f"[c12]Clue: {s.clue_text}"
 
     def repost(self,room):
         s=self.sessions.get(room)
-        return "[c08]No active game." if not s else f"[c03]{s.game.upper()} #{s.number}/{s.limit}\n[c01]{s.question}\n[c07]Points: {s.points}"
+        if not s: return "[c08]No active game."
+        target="ENDLESS" if s.endless else str(s.limit)
+        return f"[c03]{s.mode.upper()} / {s.current_game.upper()} Q#{s.number} / LIMIT {target}\n[c01]{s.question}\n[c07]Points: {s.points}"+(f"\n[c12]Clue: {s.clue_text}" if s.clue_text else "")
 
     def status(self,room):
         s=self.sessions.get(room)
-        return "[c08]No active game." if not s else f"[c03]Game: {s.game} | Question: {s.number}/{s.limit} | Paused: {'yes' if s.paused else 'no'} | Players: {len(s.players)}"
+        if not s: return "[c08]No active game."
+        target="ENDLESS" if s.endless else str(s.limit)
+        return f"[c03]Mode: {s.mode} | Current: {s.current_game} | Points: {s.points} | Score limit: {target} | Paused: {'yes' if s.paused else 'no'} | Players: {len(s.players)}"
 
     def score_text(self,room,uid):
         s=self.sessions.get(room)
@@ -161,26 +239,27 @@ class GameEngine:
     def export_state(self,room):
         s=self.sessions.get(room)
         if not s: return None
-        return {
-            "room":s.room,"game":s.game,"points":s.points,"limit":s.limit,"paused":s.paused,
-            "question":s.question,"answer":s.answer,"clue_text":s.clue_text,"number":s.number,
-            "used_questions":list(s.used_questions),
-            "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts} for p in s.players.values()]
-        }
+        return {"room":s.room,"game":s.game,"mode":s.mode,"current_game":s.current_game,
+                "points":s.points,"limit":s.limit,"endless":s.endless,"paused":s.paused,
+                "question":s.question,"answer":s.answer,"clue_text":s.clue_text,"number":s.number,
+                "used_questions":list(s.used_questions),
+                "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts} for p in s.players.values()]}
 
     def restore_state(self,state):
-        s=Session(str(state["room"]),str(state["game"]),int(state["points"]),int(state["limit"]),
-                  bool(state["paused"]),str(state.get("question") or ""),str(state.get("answer") or ""),
-                  str(state.get("clue_text") or ""),int(state.get("number") or 0),{},set(state.get("used_questions") or []))
+        mode=str(state.get("mode") or state.get("game") or "math")
+        s=Session(str(state["room"]),str(state.get("game") or mode),int(state.get("points") or DEFAULT_POINTS),
+                  int(state.get("limit") or DEFAULT_LIMIT),bool(state.get("paused")),
+                  str(state.get("question") or ""),str(state.get("answer") or ""),
+                  str(state.get("clue_text") or ""),int(state.get("number") or 0),
+                  mode=mode,endless=bool(state.get("endless")),
+                  current_game=str(state.get("current_game") or state.get("game") or mode))
+        s.used_questions=set(state.get("used_questions") or [])
         for p in state.get("players") or []:
             player=Player(str(p.get("user_id") or ""),str(p.get("username") or ""),str(p.get("nickname") or ""),
                           int(p.get("score") or 0),int(p.get("correct") or 0),int(p.get("attempts") or 0))
-            key=player.user_id or player.username
-            s.players[key]=player
-        self.sessions[s.room]=s
-        return s
+            s.players[player.user_id or player.username]=player
+        self.sessions[s.room]=s; return s
 
     def restore_all(self,states):
-        for state in states:
-            self.restore_state(state)
+        for state in states: self.restore_state(state)
         return len(states)
