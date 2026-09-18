@@ -45,14 +45,10 @@ class Database:
         # UzzapBot profile predates its Auth identity, so its configured UUID
         # is not a valid auth.users row. System messages may legally have a
         # NULL sender_id, and sender/is_system identify them as bot messages.
-        payload = {
-            "room_name": room_name,
-            "sender": BOT_NAME,
-            "body": body,
-            "is_system": False,
-            "sender_id": None,
-        }
-        self.client.table("room_messages").insert(payload).execute()
+        self.client.rpc(
+            "room_bot_message",
+            {"p_room": room_name, "p_body": body, "p_is_system": False},
+        ).execute()
 
     def profile(self, user_id: str | None, username: str | None) -> dict[str, Any] | None:
         if user_id:
