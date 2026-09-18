@@ -49,7 +49,7 @@ class Database:
             "room_name": room_name,
             "sender": BOT_NAME,
             "body": body,
-            "is_system": True,
+            "is_system": False,
             "sender_id": None,
         }
         self.client.table("room_messages").insert(payload).execute()
