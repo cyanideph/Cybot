@@ -9,6 +9,7 @@ on:
     paths:
       - 'UzzapBot/**'
       - '.github/workflows/gamecore-tests.yml'
+  workflow_dispatch:
 
 jobs:
   gamecore:
