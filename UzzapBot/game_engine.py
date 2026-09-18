@@ -157,3 +157,30 @@ class GameEngine:
         if not s: return "[c08]No active game."
         rows=sorted(s.players.values(),key=lambda p:(p.score,p.correct),reverse=True)
         return "[c12]No scores yet." if not rows else "[c03]LEADERBOARD\n"+"\n".join(f"{i}. {p.nickname} — {p.score}" for i,p in enumerate(rows,1))
+
+    def export_state(self,room):
+        s=self.sessions.get(room)
+        if not s: return None
+        return {
+            "room":s.room,"game":s.game,"points":s.points,"limit":s.limit,"paused":s.paused,
+            "question":s.question,"answer":s.answer,"clue_text":s.clue_text,"number":s.number,
+            "used_questions":list(s.used_questions),
+            "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts} for p in s.players.values()]
+        }
+
+    def restore_state(self,state):
+        s=Session(str(state["room"]),str(state["game"]),int(state["points"]),int(state["limit"]),
+                  bool(state["paused"]),str(state.get("question") or ""),str(state.get("answer") or ""),
+                  str(state.get("clue_text") or ""),int(state.get("number") or 0),{},set(state.get("used_questions") or []))
+        for p in state.get("players") or []:
+            player=Player(str(p.get("user_id") or ""),str(p.get("username") or ""),str(p.get("nickname") or ""),
+                          int(p.get("score") or 0),int(p.get("correct") or 0),int(p.get("attempts") or 0))
+            key=player.user_id or player.username
+            s.players[key]=player
+        self.sessions[s.room]=s
+        return s
+
+    def restore_all(self,states):
+        for state in states:
+            self.restore_state(state)
+        return len(states)
