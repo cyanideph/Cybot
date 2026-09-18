@@ -18,8 +18,24 @@ jobs:
         working-directory: UzzapBot
 
     steps:
-      - name: Checkout
+      - name: Checkout current main
         uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Verify runtime source
+        run: |
+          set -e
+          echo "Workflow SHA: $GITHUB_SHA"
+          echo "Checked-out SHA: $(git rev-parse HEAD)"
+          git log -1 --oneline
+          echo "Checking bot database sender implementation..."
+          grep -n 'sender_id.*None' database.py
+          if grep -n 'sender_id.*BOT_SENDER_ID' database.py; then
+            echo "::error::Stale database.py detected: sender_id still uses BOT_SENDER_ID."
+            exit 1
+          fi
+          echo "Runtime source verification passed."
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -69,10 +85,17 @@ jobs:
           fi
 
           echo "Starting UzzapBot runtime test for $minutes minute(s)."
+          set +e
           timeout --signal=SIGINT "${minutes}m" python bot.py
           rc=$?
+          set -e
+
           if [ "$rc" -eq 124 ]; then
             echo "Runtime test reached its requested duration."
+            exit 0
+          fi
+          if [ "$rc" -eq 130 ]; then
+            echo "UzzapBot stopped cleanly after SIGINT."
             exit 0
           fi
           if [ "$rc" -ne 0 ]; then
