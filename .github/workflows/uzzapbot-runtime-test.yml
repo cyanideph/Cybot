@@ -30,9 +30,16 @@ jobs:
           echo "Checked-out SHA: $(git rev-parse HEAD)"
           git log -1 --oneline
           echo "Checking bot database sender implementation..."
-          sed -n '/def send(/,/self.client.table/p' database.py
-          grep -A8 -B2 '"sender": BOT_NAME' database.py | grep -q '"is_system": False'
-          grep -A8 -B2 '"sender": BOT_NAME' database.py | grep -q '"sender_id": None'
+          if ! grep -nE '["'\\'']sender_id["'\\''][[:space:]]*:[[:space:]]*None' database.py; then
+            echo "::error::database.py must insert bot messages with sender_id set to None."
+            exit 1
+          fi
+
+          if grep -nE '["'\\'']sender_id["'\\''][[:space:]]*:[[:space:]]*BOT_SENDER_ID' database.py; then
+            echo "::error::Stale database.py detected: sender_id still uses BOT_SENDER_ID."
+            exit 1
+          fi
+
           echo "Runtime source verification passed."
 
       - name: Setup Python
