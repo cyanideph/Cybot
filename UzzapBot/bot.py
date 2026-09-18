@@ -131,7 +131,10 @@ def main()->None:
                             persist(db,games,room); db.send(room,response)
                 except Exception as exc:
                     log.exception('COMMAND ERROR room="%s" sender="%s"',room,username)
-                    db.send(room,f"[c08]Game error: {exc}")
+                    try:
+                        db.send(room,f"[c08]Game error: {exc}")
+                    except Exception:
+                        log.exception('FAILED TO SEND GAME ERROR room="%s"',room)
             time.sleep(POLL_SECONDS)
         except KeyboardInterrupt:
             log.info("Bot stopped by user"); return
