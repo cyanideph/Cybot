@@ -270,7 +270,7 @@ class Database:
         defaults = {"activated": False, "locked": False, "wcbot": False,
                     "welcome_message": "welcome to {room} {nickname}", "challenge_room": "", "ai_enabled": False}
         rows = self.client.table("uzzapbot_room_settings").select(
-            "room_name,activated,locked,wcbot,welcome_message,challenge_room"
+            "room_name,activated,locked,wcbot,welcome_message,challenge_room,ai_enabled"
         ).eq("room_name", room).limit(1).execute().data or []
         if not rows:
             return defaults
