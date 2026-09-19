@@ -36,10 +36,10 @@ class GeminiDecisionClient:
         if not text:
             return GeminiDecisionResult(False, error="empty_conversation")
 
-        # google-genai 2.x rejects JSON Schema union types such as
-        # {"type": ["string", "null"]} when passed through response_schema.
-        # Use an empty string as the explicit "no game" value instead.
-        # DecisionEngine already treats "" as equivalent to None.
+        # Keep the schema to the subset accepted by the production
+        # generateContent response_schema endpoint. In particular, do not
+        # send additionalProperties: the deployed API currently rejects it
+        # as an unknown generation_config field.
         schema = {
             "type": "object",
             "properties": {
@@ -54,7 +54,6 @@ class GeminiDecisionClient:
                 "response": {"type": "string"}
             },
             "required": ["should_intervene", "topic", "confidence", "action", "game", "response"],
-            "additionalProperties": False,
         }
         prompt = (
             "You are the decision layer for UzzapBot. Analyze the recent room conversation. "
@@ -82,8 +81,6 @@ class GeminiDecisionClient:
             decision = json.loads(raw)
             if not isinstance(decision, dict):
                 return GeminiDecisionResult(False, error="invalid_decision_shape")
-            # Normalize the schema's explicit empty-string sentinel to the
-            # existing internal representation used by the decision engine.
             if decision.get("game") == "":
                 decision["game"] = None
             return GeminiDecisionResult(True, decision=decision)
