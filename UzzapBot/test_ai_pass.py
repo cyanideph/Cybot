@@ -26,7 +26,7 @@ class FakeActivity:
             "reasons": [],
         }
 
-    def get_or_create(self, room_name):
+    def get_or_create(self, room_name, settings=None):
         return self.state
 
     def snapshot(self, room_name):
