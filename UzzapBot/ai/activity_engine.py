@@ -44,6 +44,7 @@ class RoomActivity:
     max_messages_per_day: int = 20
     last_human_activity_at: datetime | None = None
     last_bot_activity_at: datetime | None = None
+    last_ai_analysis_at: datetime | None = None
     activity_state: str = "INACTIVE"
     human_message_count_hour: int = 0
     human_message_count_day: int = 0
@@ -84,6 +85,9 @@ class RoomActivity:
     def record_bot_message(self, at: datetime | None = None) -> None:
         self.last_bot_activity_at = at or utcnow()
 
+    def record_ai_analysis(self, at: datetime | None = None) -> None:
+        self.last_ai_analysis_at = at or utcnow()
+
     def cooldown_available(self, now: datetime | None = None) -> bool:
         if self.last_bot_activity_at is None:
             return True
@@ -110,6 +114,11 @@ class RoomActivity:
         if not self.cooldown_available(now):
             eligible = False
             reasons.append("cooldown")
+        if self.last_ai_analysis_at is not None:
+            now_check = now or utcnow()
+            if (now_check - self.last_ai_analysis_at).total_seconds() < self.cooldown_seconds:
+                eligible = False
+                reasons.append("ai_analysis_cooldown")
         if not self.message_budget_available():
             eligible = False
             reasons.append("message_budget")
@@ -121,6 +130,7 @@ class RoomActivity:
             "reasons": reasons,
             "last_human_activity_at": self.last_human_activity_at.isoformat() if self.last_human_activity_at else None,
             "last_bot_activity_at": self.last_bot_activity_at.isoformat() if self.last_bot_activity_at else None,
+            "last_ai_analysis_at": self.last_ai_analysis_at.isoformat() if self.last_ai_analysis_at else None,
             "human_message_count_hour": self.human_message_count_hour,
             "human_message_count_day": self.human_message_count_day,
         }
@@ -180,6 +190,7 @@ class ActivityEngine:
                 activity = self.get_or_create(str(row.get("room_name") or ""), row)
                 activity.last_human_activity_at = parse_timestamp(row.get("last_human_activity_at"))
                 activity.last_bot_activity_at = parse_timestamp(row.get("last_bot_activity_at"))
+                activity.last_ai_analysis_at = parse_timestamp(row.get("last_ai_analysis_at"))
                 activity.activity_state = str(row.get("activity_state") or "INACTIVE")
                 activity.human_message_count_hour = int(row.get("human_message_count_hour") or 0)
                 activity.human_message_count_day = int(row.get("human_message_count_day") or 0)
