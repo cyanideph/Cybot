@@ -2,7 +2,7 @@
 
 This module only evaluates rollout readiness. It never enables AI, calls a
 network service, writes to Supabase, sends messages, or changes configuration.
-""" 
+"""
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -33,14 +33,18 @@ def evaluate_rollout(config: Mapping[str, Any]) -> dict[str, Any]:
             findings.append("dry_run_must_be_disabled")
 
     if requested_stage == "canary":
-        canary_percent = int(config.get("canary_percent", 1))
-        if not 1 <= canary_percent <= 10:
+        try:
+            canary_percent = int(config.get("canary_percent", 1))
+        except (TypeError, ValueError):
+            canary_percent = 0
             findings.append("invalid_canary_percent")
+        if not 1 <= canary_percent <= 10:
+            if "invalid_canary_percent" not in findings:
+                findings.append("invalid_canary_percent")
     else:
         canary_percent = 0
 
     # Phase 11 never turns a requested stage into an active runtime switch.
-    live_path_open = bool(security["live_path_open"])
     return {
         "ready": not findings,
         "requested_stage": requested_stage,
@@ -52,7 +56,7 @@ def evaluate_rollout(config: Mapping[str, Any]) -> dict[str, Any]:
         "message_sending": False,
         "automatic_tuning": False,
         "rollback_stage": "disabled",
-        "live_path_open": live_path_open,
+        "live_path_open": bool(security["live_path_open"]),
     }
 
 
