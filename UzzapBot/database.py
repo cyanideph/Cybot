@@ -180,12 +180,15 @@ class Database:
         return list(reversed(rows))
 
     def save_room_memory(self, memory: dict[str, Any]) -> None:
+        from datetime import datetime, timedelta, timezone
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         self.client.table("uzzapbot_room_memory").insert({
             "room_name": str(memory["room_name"]),
             "memory_type": str(memory.get("memory_type") or "conversation"),
             "content": str(memory.get("content") or "")[:2000],
             "source_message_id": memory.get("source_message_id"),
             "metadata": memory.get("metadata") or {},
+            "expires_at": memory.get("expires_at") or expires_at,
         }).execute()
 
     def get_room_settings(self, room: str) -> dict[str, Any]:
