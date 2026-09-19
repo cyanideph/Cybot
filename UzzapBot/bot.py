@@ -1,9 +1,9 @@
 """Pydroid 3 entry point for UzzapBot."""
 from __future__ import annotations
 import logging,time
-from config import BOT_NAME,ADMIN_IDS,POLL_SECONDS,DEFAULT_POINTS,DEFAULT_LIMIT,validate
+from config import (BOT_NAME,ADMIN_IDS,POLL_SECONDS,DEFAULT_POINTS,DEFAULT_LIMIT,validate,\n                   AI_ENABLED,AI_IDLE_MINUTES,AI_INACTIVE_MINUTES,AI_COOLDOWN_MINUTES,\n                   AI_MAX_MESSAGES_PER_HOUR,AI_MAX_MESSAGES_PER_DAY)
 from database import Database
-from game_engine import GameEngine
+from game_engine import GameEngine\nfrom ai.activity_engine import ActivityEngine
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
