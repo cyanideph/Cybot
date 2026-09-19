@@ -244,7 +244,9 @@ class GameEngine:
 
     def finish(self,s,winner=None):
         s.paused=True
-        if winner: return f"[c03]{winner.nickname} WINS THE GAME!\n[c03]Score: {winner.score}"
+        if winner:
+            title=self._reply(s,"win",self.WIN_REPLIES)
+            return f"{title}\n[c01]Congratulations, {winner.nickname}![c01]\n[c07]⭐ FINAL SCORE: {winner.score}"
         rows=sorted(s.players.values(),key=lambda p:(p.score,p.correct),reverse=True)
         if not rows: return f"[c03]{s.mode.upper()} COMPLETE\n[c01]No scores yet."
         return f"[c03]{s.mode.upper()} COMPLETE\n[c01]Final leaderboard\n"+"\n".join(f"{i}. {p.nickname} — {p.score}" for i,p in enumerate(rows[:10],1))
@@ -337,7 +339,7 @@ class GameEngine:
         if self._answer_matches(text,s.answer):
             p.correct+=1; p.score+=s.points
             response=self._reply(s,"correct",self.CORRECT_REPLIES,name=p.nickname,points=s.points)
-            response+="\\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
+            response+="\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
             return True,response
         response=self._reply(s,"wrong",self.WRONG_REPLIES,name=p.nickname)
         return False,response
@@ -374,7 +376,8 @@ class GameEngine:
         s=self.sessions.get(room)
         if not s: return "[c08]No active game."
         target="ENDLESS" if s.endless else str(s.limit)
-        return f"[c03]{s.mode.upper()} / {s.current_game.upper()} Q#{s.number} / LIMIT {target}\n[c01]{s.question}\n[c07]Points: {s.points}"+(f"\n[c12]Clue: {s.clue_text}" if s.clue_text else "")
+        header=self._reply(s,"new_game",self.NEW_GAME_REPLIES)
+        return f"{header}\n[c14]{s.mode.upper()} · Q#{s.number}[c01]\n[c01]{s.question}\n[c07]⭐ {s.points} POINTS[c01]"+(f"\n[c12]Clue: {s.clue_text}" if s.clue_text else "")
 
     def status(self,room):
         s=self.sessions.get(room)
