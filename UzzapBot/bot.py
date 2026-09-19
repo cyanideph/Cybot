@@ -1,9 +1,14 @@
 """Pydroid 3 entry point for UzzapBot."""
 from __future__ import annotations
 import logging,time
-from config import (BOT_NAME,ADMIN_IDS,POLL_SECONDS,DEFAULT_POINTS,DEFAULT_LIMIT,validate,\n                   AI_ENABLED,AI_IDLE_MINUTES,AI_INACTIVE_MINUTES,AI_COOLDOWN_MINUTES,\n                   AI_MAX_MESSAGES_PER_HOUR,AI_MAX_MESSAGES_PER_DAY)
+from config import (
+    BOT_NAME, ADMIN_IDS, POLL_SECONDS, DEFAULT_POINTS, DEFAULT_LIMIT, validate,
+    AI_ENABLED, AI_IDLE_MINUTES, AI_INACTIVE_MINUTES, AI_COOLDOWN_MINUTES,
+    AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY,
+)
 from database import Database
-from game_engine import GameEngine\nfrom ai.activity_engine import ActivityEngine
+from game_engine import GameEngine
+from ai.activity_engine import ActivityEngine
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
@@ -150,9 +155,19 @@ def parse_command(text:str):
 def main()->None:
     validate()
     db,games=Database(),GameEngine()
+    activity=ActivityEngine({
+        "enabled": AI_ENABLED,
+        "idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+        "inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+        "cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+        "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+        "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
+    })
+    restored_activity = activity.load(db.load_room_activity())
     restored=games.restore_all(db.load_game_state())
     seen_participants=set()
     db.poll_new_participants(seen_participants)
+    log.info("Restored %d room-activity state(s)",restored_activity)
     log.info("Restored %d persistent game session(s)",restored)
     log.info("%s connected; polling every %.1fs",BOT_NAME,POLL_SECONDS)
     while True:
@@ -174,6 +189,22 @@ def main()->None:
                 username=str(msg.get("sender") or "").strip()
                 uid=str(msg.get("sender_id") or "")
                 if not room or not text: continue
+                try:
+                    settings = db.get_room_settings(room)
+                    activity.record_human_message(
+                        room,
+                        settings={
+                            "enabled": AI_ENABLED,
+                            "idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+                            "inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+                            "cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+                            "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+                            "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
+                        },
+                    )
+                    db.save_room_activity(activity.snapshot(room))
+                    # Phase 1 only: deterministic activity tracking.
+                    # No model/API call is made here.
                 try:
                     if not text.startswith("/"):
                         session=games.get(room)
