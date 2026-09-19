@@ -35,6 +35,8 @@ class Session:
     endless: bool = False
     current_game: str = ""
     recent_games: list[str] = field(default_factory=list)
+    cycle_number: int = 1
+    cycle_games_used: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.mode: self.mode = self.game
@@ -126,13 +128,29 @@ class GameEngine:
               "randomgta":self.RANDOM_GTA,"math":self.RANDOM_MATH,"algebra":self.RANDOM_ALGEBRA}[mode]
         return random.choice(pool)
 
+    def _random_pool(self,mode):
+        return {"random1":self.RANDOM1,"random2":self.RANDOM2,"random3":self.RANDOM3,
+                "randomgta":self.RANDOM_GTA,"math":self.RANDOM_MATH,"algebra":self.RANDOM_ALGEBRA}[mode]
+
     def _choose_random_game(self,s):
-        pool={"random1":self.RANDOM1,"random2":self.RANDOM2,"random3":self.RANDOM3,
-              "randomgta":self.RANDOM_GTA,"math":self.RANDOM_MATH,"algebra":self.RANDOM_ALGEBRA}[s.mode]
+        """Choose a weighted game while completing a full non-repeating cycle."""
+        pool=self._random_pool(s.mode)
         counts=Counter(pool)
+        all_games=list(counts)
+
+        if set(s.cycle_games_used) >= set(all_games):
+            s.cycle_number=max(1,s.cycle_number)+1
+            s.cycle_games_used=[]
+
+        used=set(s.cycle_games_used)
+        candidates=[g for g in all_games if g not in used]
         blocked=set(s.recent_games[-2:])
-        candidates=[g for g in counts if g not in blocked] or list(counts)
+        non_blocked=[g for g in candidates if g not in blocked]
+        if non_blocked:
+            candidates=non_blocked
+
         chosen=random.choices(candidates,weights=[counts[g] for g in candidates],k=1)[0]
+        s.cycle_games_used.append(chosen)
         s.recent_games.append(chosen)
         s.recent_games=s.recent_games[-3:]
         return chosen
@@ -286,7 +304,9 @@ class GameEngine:
         s=self.sessions.get(room)
         if not s: return "[c08]No active game."
         target="ENDLESS" if s.endless else str(s.limit)
-        return f"[c03]Mode: {s.mode} | Current: {s.current_game} | Points: {s.points} | Score limit: {target} | Paused: {'yes' if s.paused else 'no'} | Players: {len(s.players)}"
+        cycle_total=len(set(self._random_pool(s.mode))) if s.mode in {"random1","random2","random3","randomgta","math","algebra"} else 0
+        cycle_text=f" | Cycle: {s.cycle_number} ({len(set(s.cycle_games_used))}/{cycle_total})" if cycle_total else ""
+        return f"[c03]Mode: {s.mode} | Current: {s.current_game} | Points: {s.points} | Score limit: {target} | Paused: {'yes' if s.paused else 'no'} | Players: {len(s.players)}{cycle_text}"
 
     def score_text(self,room,uid):
         s=self.sessions.get(room)
@@ -307,6 +327,7 @@ class GameEngine:
                 "points":s.points,"limit":s.limit,"endless":s.endless,"paused":s.paused,
                 "question":s.question,"answer":s.answer,"clue_text":s.clue_text,"number":s.number,
                 "used_questions":list(s.used_questions), "clue_level":s.clue_level, "recent_games":list(s.recent_games),
+                "cycle_number":s.cycle_number, "cycle_games_used":list(s.cycle_games_used),
                 "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts,"clues_used":p.clues_used} for p in s.players.values()]}
 
     def restore_state(self,state):
@@ -327,7 +348,9 @@ class GameEngine:
                   str(state.get("question") or ""),str(state.get("answer") or ""),
                   str(state.get("clue_text") or ""),int(state.get("clue_level") or 0),int(state.get("number") or 0),
                   mode=mode,endless=bool(state.get("endless")),
-                  current_game=str(state.get("current_game") or game or mode), recent_games=list(state.get("recent_games") or []))
+                  current_game=str(state.get("current_game") or game or mode), recent_games=list(state.get("recent_games") or []),
+                  cycle_number=max(1,int(state.get("cycle_number") or 1)),
+                  cycle_games_used=list(state.get("cycle_games_used") or []))
         s.used_questions=set(state.get("used_questions") or [])
 
         for p in state.get("players") or []:
