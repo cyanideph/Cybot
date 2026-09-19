@@ -20,9 +20,19 @@ class Database:
         rows = r.data or []
         return int(rows[0]["id"]) if rows else 0
 
+    def claim_message(self, message_id: int) -> bool:
+        """Atomically claim a message so multiple bot workers cannot process it twice."""
+        r = self.client.rpc(
+            "uzzapbot_claim_message",
+            {"p_message_id": int(message_id)},
+        ).execute()
+        return bool(r.data)
+
     def poll_messages(self) -> list[dict[str, Any]]:
         # Drain in pages so a busy interval (>100 new messages) is never
         # skipped: last_id only advances after each page is fully read.
+        # Each returned row is atomically claimed in Supabase, so only one
+        # UzzapBot worker can process a message when duplicate workers exist.
         result: list[dict[str, Any]] = []
         while True:
             r = (
@@ -41,7 +51,8 @@ class Database:
                 sender = str(x.get("sender") or "")
                 if str(x.get("sender_id") or "") == BOT_SENDER_ID or sender.casefold() == BOT_NAME.casefold():
                     continue
-                result.append(x)
+                if self.claim_message(int(x["id"])):
+                    result.append(x)
             if len(rows) < 100:
                 break
         return result
