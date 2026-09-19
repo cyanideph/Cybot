@@ -2,10 +2,36 @@
 from __future__ import annotations
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 ROOT = Path(__file__).resolve().parent
-load_dotenv(ROOT / ".env")
+_DOTENV_PATH = ROOT / ".env"
+_ENV_KEYS_AT_IMPORT = set(os.environ)
+_DOTENV_VALUES = dotenv_values(_DOTENV_PATH)
+load_dotenv(_DOTENV_PATH)
+
+
+def _env_source(name: str) -> str:
+    """Report where a non-secret setting came from without exposing its value."""
+    if name in _ENV_KEYS_AT_IMPORT:
+        return "process_environment"
+    if _DOTENV_VALUES.get(name) is not None:
+        return "dotenv"
+    return "default"
+
+
+def _env_int(name: str, default: int, minimum: int = 0) -> int:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw.strip())
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+    if value < minimum:
+        raise RuntimeError(f"{name} must be >= {minimum}")
+    return value
+
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
 # Server-side only. Never put this key in Android, GitHub source, or logs.
@@ -27,6 +53,7 @@ AI_DRY_RUN = os.getenv("AI_DRY_RUN", "true").strip().casefold() == "true"
 AI_LIVE_ENABLED = os.getenv("AI_LIVE_ENABLED", "false").strip().casefold() == "true"
 AI_ROLLOUT_STAGE = os.getenv("AI_ROLLOUT_STAGE", "disabled").strip().casefold()
 
+
 def _parse_canary_percent(value: str | None) -> int:
     """Parse the canary percentage with a fail-closed result.
 
@@ -41,18 +68,33 @@ def _parse_canary_percent(value: str | None) -> int:
         return 0
     return parsed if 1 <= parsed <= 10 else 0
 
+
 AI_CANARY_PERCENT = _parse_canary_percent(os.getenv("AI_CANARY_PERCENT", "1"))
-AI_IDLE_MINUTES = int(os.getenv("AI_IDLE_MINUTES", "15"))
-AI_INACTIVE_MINUTES = int(os.getenv("AI_INACTIVE_MINUTES", "60"))
-AI_COOLDOWN_MINUTES = int(os.getenv("AI_COOLDOWN_MINUTES", "30"))
-AI_MAX_MESSAGES_PER_HOUR = int(os.getenv("AI_MAX_MESSAGES_PER_HOUR", "3"))
-AI_MAX_MESSAGES_PER_DAY = int(os.getenv("AI_MAX_MESSAGES_PER_DAY", "20"))
-AI_MAX_REQUESTS_PER_DAY = int(os.getenv("AI_MAX_REQUESTS_PER_DAY", "100"))
+AI_IDLE_MINUTES = _env_int("AI_IDLE_MINUTES", 15, minimum=1)
+AI_INACTIVE_MINUTES = _env_int("AI_INACTIVE_MINUTES", 60, minimum=1)
+AI_COOLDOWN_MINUTES = _env_int("AI_COOLDOWN_MINUTES", 30, minimum=1)
+AI_MAX_MESSAGES_PER_HOUR = _env_int("AI_MAX_MESSAGES_PER_HOUR", 3, minimum=1)
+AI_MAX_MESSAGES_PER_DAY = _env_int("AI_MAX_MESSAGES_PER_DAY", 20, minimum=1)
+AI_MAX_REQUESTS_PER_DAY = _env_int("AI_MAX_REQUESTS_PER_DAY", 100, minimum=1)
 AI_MIN_CONFIDENCE = float(os.getenv("AI_MIN_CONFIDENCE", "0.75"))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-3.8-flash")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2")
-AI_EMBEDDING_DIMENSIONS = int(os.getenv("AI_EMBEDDING_DIMENSIONS", "768"))
+AI_EMBEDDING_DIMENSIONS = _env_int("AI_EMBEDDING_DIMENSIONS", 768, minimum=1)
+
+# Non-secret diagnostics used by the AI pass gate. Values are intentionally
+# limited to source labels so secrets and raw environment contents are never logged.
+AI_CONFIG_SOURCES = {
+    "AI_ENABLED": _env_source("AI_ENABLED"),
+    "AI_IDLE_MINUTES": _env_source("AI_IDLE_MINUTES"),
+    "AI_INACTIVE_MINUTES": _env_source("AI_INACTIVE_MINUTES"),
+    "AI_COOLDOWN_MINUTES": _env_source("AI_COOLDOWN_MINUTES"),
+    "AI_ROLLOUT_STAGE": _env_source("AI_ROLLOUT_STAGE"),
+    "AI_CANARY_PERCENT": _env_source("AI_CANARY_PERCENT"),
+    "AI_LIVE_ENABLED": _env_source("AI_LIVE_ENABLED"),
+    "AI_DRY_RUN": _env_source("AI_DRY_RUN"),
+}
+
 
 def validate() -> None:
     missing = [
