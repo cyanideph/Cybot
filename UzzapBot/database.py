@@ -84,6 +84,14 @@ class Database:
                 break
         return result
 
+    def mark_bot_activity(self, room: str) -> None:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        self.client.table("uzzapbot_room_activity").upsert(
+            {"room_name": room, "last_bot_activity_at": now, "updated_at": now},
+            on_conflict="room_name",
+        ).execute()
+
     def send(self, room_name: str, body: str) -> None:
         """Store bot output unchanged; Android owns all emoticon rendering."""
         body = str(body)
@@ -92,6 +100,7 @@ class Database:
             "room_bot_message",
             {"p_room": room_name, "p_body": body, "p_is_system": False},
         ).execute()
+        self.mark_bot_activity(room_name)
 
     def load_room_activity(self) -> list[dict[str, Any]]:
         return self.client.table("uzzapbot_room_activity").select(
