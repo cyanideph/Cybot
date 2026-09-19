@@ -182,6 +182,41 @@ class GameEngine:
     def get(self,room): return self.sessions.get(room)
     def stop(self,room): self.sessions.pop(room,None)
 
+    def join(self,room,uid,username,nickname):
+        s=self.sessions.get(room)
+        if not s:
+            return False,"[c08]No active game."
+        key=uid or username
+        if not key:
+            return False,"[c08]Unable to identify player."
+        if key in s.players:
+            return False,f"[c12]{nickname or username}, you are already in the game."
+        s.players[key]=Player(key,username,nickname or username)
+        return True,f"[c03]🎮 {nickname or username} joined the game!\n[c01]You can now answer the questions."
+
+    def leave(self,room,uid):
+        s=self.sessions.get(room)
+        if not s:
+            return False,"[c08]No active game."
+        key=uid
+        if key not in s.players:
+            return False,"[c12]You are not in the game."
+        nickname=s.players[key].nickname
+        del s.players[key]
+        return True,f"[c12]👋 {nickname} left the game."
+
+    def players_text(self,room):
+        s=self.sessions.get(room)
+        if not s:
+            return "[c08]No active game."
+        rows=list(s.players.values())
+        if not rows:
+            return "[c12]No players have joined yet. Use /JOIN to play."
+        rows.sort(key=lambda p:(p.score,p.correct),reverse=True)
+        lines=[f"[c03]🎮 PLAYERS ({len(rows)})"]
+        lines.extend(f"[c01]{i}. {p.nickname} — {p.score} pts" for i,p in enumerate(rows,1))
+        return "\n".join(lines)
+
     def _build_question(self,s,game):
         s.current_game=game; s.clue_text=""; s.clue_level=0
         if game in {"add","minus","multiply","add1","minus1","multiply1"}:
@@ -334,7 +369,9 @@ class GameEngine:
         s=self.sessions.get(room)
         if not s or s.paused: return False,""
         key=uid or username
-        p=s.players.setdefault(key,Player(uid,username,nickname))
+        p=s.players.get(key)
+        if p is None:
+            return False,""
         p.nickname=nickname or p.nickname; p.username=username or p.username; p.attempts+=1
         if self._answer_matches(text,s.answer):
             p.correct+=1; p.score+=s.points
