@@ -23,6 +23,8 @@ DATA_DIR = ROOT / "data"
 # activity tracking; no model/API call is made by the activity engine.
 AI_ENABLED = os.getenv("AI_ENABLED", "false").strip().casefold() == "true"
 AI_DRY_RUN = os.getenv("AI_DRY_RUN", "true").strip().casefold() == "true"
+# A second explicit global gate is required before any live AI response can be sent.
+AI_LIVE_ENABLED = os.getenv("AI_LIVE_ENABLED", "false").strip().casefold() == "true"
 AI_IDLE_MINUTES = int(os.getenv("AI_IDLE_MINUTES", "15"))
 AI_INACTIVE_MINUTES = int(os.getenv("AI_INACTIVE_MINUTES", "60"))
 AI_COOLDOWN_MINUTES = int(os.getenv("AI_COOLDOWN_MINUTES", "30"))

@@ -140,6 +140,7 @@ def test_run_ai_pass_sends_only_after_dry_run_disabled(monkeypatch):
     monkeypatch.setattr(bot_module, "AI_ENABLED", True)
     monkeypatch.setattr(bot_module, "GEMINI_API_KEY", "test-key")
     monkeypatch.setattr(bot_module, "AI_DRY_RUN", False)
+    monkeypatch.setattr(bot_module, "AI_LIVE_ENABLED", True)
     monkeypatch.setattr(bot_module, "AI_MAX_REQUESTS_PER_DAY", 100)
     monkeypatch.setattr(bot_module, "AI_MIN_CONFIDENCE", 0.75)
     monkeypatch.setattr(bot_module, "GEMINI_FLASH_MODEL", "test-model")

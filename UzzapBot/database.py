@@ -268,7 +268,7 @@ class Database:
 
     def get_room_settings(self, room: str) -> dict[str, Any]:
         defaults = {"activated": False, "locked": False, "wcbot": False,
-                    "welcome_message": "welcome to {room} {nickname}", "challenge_room": ""}
+                    "welcome_message": "welcome to {room} {nickname}", "challenge_room": "", "ai_enabled": False}
         rows = self.client.table("uzzapbot_room_settings").select(
             "room_name,activated,locked,wcbot,welcome_message,challenge_room"
         ).eq("room_name", room).limit(1).execute().data or []
@@ -285,6 +285,7 @@ class Database:
             "wcbot": bool(settings.get("wcbot")),
             "welcome_message": str(settings.get("welcome_message") or "welcome to {room} {nickname}"),
             "challenge_room": str(settings.get("challenge_room") or ""),
+            "ai_enabled": bool(settings.get("ai_enabled", False)),
         }
         self.client.table("uzzapbot_room_settings").upsert(payload, on_conflict="room_name").execute()
 

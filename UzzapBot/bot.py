@@ -5,7 +5,7 @@ from config import (
     BOT_NAME, ADMIN_IDS, POLL_SECONDS, DEFAULT_POINTS, DEFAULT_LIMIT, validate,
     AI_ENABLED, AI_IDLE_MINUTES, AI_INACTIVE_MINUTES, AI_COOLDOWN_MINUTES,
     AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY, AI_DRY_RUN,
-    AI_MAX_REQUESTS_PER_DAY, AI_MIN_CONFIDENCE, GEMINI_API_KEY, GEMINI_FLASH_MODEL,
+    AI_MAX_REQUESTS_PER_DAY, AI_MIN_CONFIDENCE, AI_LIVE_ENABLED, GEMINI_API_KEY, GEMINI_FLASH_MODEL,
     AI_EMBEDDING_DIMENSIONS,
 )
 from database import Database
@@ -67,6 +67,8 @@ HELP="""[c04]╔═════════════════════�
 [c16]/WCBOT OFF[c09] — Disable welcome bot
 [c16]/WMSG <message>[c09] — Set welcome message
 [c16]/CHALLENGE <room>[c09] — Set challenge room
+[c16]/AI ON[c09] — Enable AI for this room
+[c16]/AI OFF[c09] — Disable AI for this room
 [c16]/CHALLENGE OFF[c09] — Disable challenge/mirror
 
 [c09]🎮 To play, use /JOIN first.
@@ -94,7 +96,7 @@ def room_settings(room: str, db: Database | None = None) -> dict:
     now = time.time()
     stale = now - ROOM_SETTINGS_LOADED.get(room, 0.0) > SETTINGS_TTL_SECONDS
     if room not in ROOM_SETTINGS or stale:
-        ROOM_SETTINGS[room] = db.get_room_settings(room) if db else {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":""}
+        ROOM_SETTINGS[room] = db.get_room_settings(room) if db else {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":"", "ai_enabled":False}
         ROOM_SETTINGS_LOADED[room] = now
     return ROOM_SETTINGS[room]
 
@@ -137,6 +139,11 @@ def parse_command(text:str):
         if args:
             return ["invalid_command", command]
         return [command]
+
+    if command=="ai":
+        if len(args)!=1 or args[0].casefold() not in {"on","off"}:
+            return ["invalid_command","ai"]
+        return ["ai",args[0].casefold()]
 
     if command=="wcbot":
         if len(args)!=1 or args[0].casefold() not in {"on","off"}:
@@ -280,7 +287,7 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             except Exception:
                 log.exception('AI MEMORY EMBEDDING SAVE ERROR room="%s"', room_name)
 
-        if not AI_DRY_RUN and validated.get("allowed") and validated.get("response"):
+        if AI_LIVE_ENABLED and not AI_DRY_RUN and validated.get("allowed") and validated.get("response"):
             # Re-check the durable output budget immediately before sending.
             # This keeps the cap authoritative even if another worker wrote an
             # AI response after the initial eligibility check.
@@ -341,7 +348,7 @@ def main()->None:
                     activity.record_human_message(
                         room,
                         settings={
-                            "enabled": AI_ENABLED,
+                            "enabled": AI_ENABLED and bool(settings.get("ai_enabled", False)),
                             "idle_threshold_seconds": AI_IDLE_MINUTES * 60,
                             "inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
                             "cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
@@ -372,7 +379,7 @@ def main()->None:
                     admin=is_admin(msg)
                     sub=args[0].casefold()
                     player_commands={"help","clue","repost","status","score","leaderboard","version","join","leave","players","start"}
-                    admin_commands={"stop","pause","resume","next","reveal","activate","lock","unlock","wcbot","wmsg","challenge","challenge_off"}
+                    admin_commands={"stop","pause","resume","next","reveal","activate","lock","unlock","ai","wcbot","wmsg","challenge","challenge_off"}
                     log.info('COMMAND room="%s" sender="%s" body=%r admin=%s',room,username,text,admin)
 
                     if sub=="unknown" or sub=="invalid_command" or sub=="invalid_game_command":
@@ -386,7 +393,21 @@ def main()->None:
                         db.send(room,"[c08]Admin-only command.")
                         continue
 
-                    if sub=="help": db.send(room,HELP)
+                    if sub=="ai":
+                        cfg=room_settings(room,db)
+                        cfg["ai_enabled"] = args[1] == "on"
+                        save_room_settings(db,room)
+                        activity.get_or_create(room, {
+                            "enabled": AI_ENABLED and cfg["ai_enabled"],
+                            "idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+                            "inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+                            "cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+                            "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+                            "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
+                        })
+                        db.save_room_activity(activity.snapshot(room))
+                        db.send(room, "[c03]Room AI enabled." if cfg["ai_enabled"] else "[c08]Room AI disabled.")
+                    elif sub=="help": db.send(room,HELP)
                     elif sub=="version":
                         db.send(room,"[c11]🤖 UzzapBot[c01] [c14]v4.5[c01]\n[c02]🎮 Game Core:[c01] [c14]4.5[c01]\n[c04]🕹️ Smart Game Modes[c01]\n[c07]💡 Progressive Clues[c01]\n[c18]🔄 Smart Game Cycles[c01]\n[c06]🏆 Scores & Leaderboards[c01]\n[c03]⚡ Fast Answer Checking[c01]\n[c02]🟢 Status: ONLINE[c01]")
                     elif sub=="join":
