@@ -189,6 +189,28 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
     context_manager = RoomContextManager(max_recent_messages=20, max_memory_items=5)
 
     for room_name in list(activity.rooms):
+        # The durable Supabase room setting is the authoritative room-level AI gate.
+        # Do not rely only on in-memory ActivityEngine state, because a restart,
+        # stale cache, or another worker may have changed /AI ON|OFF.
+        try:
+            room_settings = db.get_room_settings(room_name)
+            if not bool(room_settings.get("ai_enabled", False)):
+                continue
+            activity.get_or_create(
+                room_name,
+                {
+                    "enabled": True,
+                    "idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+                    "inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+                    "cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+                    "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+                    "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
+                },
+            )
+        except Exception:
+            log.exception('AI ROOM GATE ERROR room="%s"', room_name)
+            continue
+
         eligibility = activity.eligibility(room_name)
         if not eligibility["eligible"] or eligibility["state"] not in {"QUIET", "INACTIVE"}:
             continue
