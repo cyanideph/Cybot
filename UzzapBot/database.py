@@ -50,6 +50,46 @@ class Database:
             {"p_room": room_name, "p_body": body, "p_is_system": False},
         ).execute()
 
+    def get_room_settings(self, room: str) -> dict[str, Any]:
+        defaults = {"activated": False, "locked": False, "wcbot": False,
+                    "welcome_message": "welcome to {room} {nickname}", "challenge_room": ""}
+        rows = self.client.table("uzzapbot_room_settings").select(
+            "room_name,activated,locked,wcbot,welcome_message,challenge_room"
+        ).eq("room_name", room).limit(1).execute().data or []
+        if not rows:
+            return defaults
+        row = rows[0]
+        return {k: row.get(k, v) for k, v in defaults.items()}
+
+    def save_room_settings(self, room: str, settings: dict[str, Any]) -> None:
+        payload = {
+            "room_name": room,
+            "activated": bool(settings.get("activated")),
+            "locked": bool(settings.get("locked")),
+            "wcbot": bool(settings.get("wcbot")),
+            "welcome_message": str(settings.get("welcome_message") or "welcome to {room} {nickname}"),
+            "challenge_room": str(settings.get("challenge_room") or ""),
+            "updated_at": "now()",
+        }
+        payload.pop("updated_at")
+        self.client.table("uzzapbot_room_settings").upsert(payload, on_conflict="room_name").execute()
+
+    def poll_new_participants(self, seen: set[str]) -> list[dict[str, Any]]:
+        rows = self.client.table("room_participants").select(
+            "room_name,username,last_ping"
+        ).execute().data or []
+        new = []
+        for row in rows:
+            room = str(row.get("room_name") or "").strip()
+            username = str(row.get("username") or "").strip()
+            if not room or not username:
+                continue
+            key = room + "\x00" + username.casefold()
+            if key not in seen:
+                seen.add(key)
+                new.append(row)
+        return new
+
     def profile(self, user_id: str | None, username: str | None) -> dict[str, Any] | None:
         if user_id:
             r = self.client.table("profiles").select("id,username,nickname").eq("id", user_id).limit(1).execute()
