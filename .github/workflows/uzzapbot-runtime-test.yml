@@ -64,10 +64,9 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BOT_SENDER_ID: ${{ secrets.BOT_SENDER_ID }}
           ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
-          ADMIN_USERNAMES: ${{ secrets.ADMIN_USERNAMES }}
         run: |
           set -e
-          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY BOT_SENDER_ID ADMIN_IDS ADMIN_USERNAMES; do
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY BOT_SENDER_ID ADMIN_IDS; do
             if [ -z "${!name}" ]; then
               echo "::error::GitHub Actions secret $name is missing."
               exit 1
