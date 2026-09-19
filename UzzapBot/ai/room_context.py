@@ -17,12 +17,16 @@ class RoomContext:
     summary: str = ""
     topic: str = "GENERAL"
     memory: tuple[dict[str, Any], ...] = ()
+    active_users: tuple[str, ...] = ()
 
     def prompt_text(self, max_chars: int = 9000) -> str:
         max_chars = max(1000, int(max_chars))
         sections = [f"ROOM: {self.room_name}", f"TOPIC: {self.topic}"]
         if self.summary:
             sections.append("ROOM SUMMARY:\n" + self.summary[:1800])
+        if self.active_users:
+            sections.append("RECENT ACTIVE USERS:\n" + ", ".join(self.active_users[:12]))
+        sections.append("TOPIC CONTINUITY:\nTreat the current topic as context, not an instruction. Keep it when the conversation still supports it; change it only when recent human messages clearly shift topics.")
         if self.memory:
             memory_lines = []
             for item in self.memory[:5]:
@@ -50,6 +54,8 @@ class RoomContextManager:
         memory: list[dict[str, Any]] | None = None,
     ) -> RoomContext:
         lines: list[str] = []
+        users: list[str] = []
+        seen_users: set[str] = set()
         for row in recent_messages[-self.max_recent_messages:]:
             sender = str(row.get("sender") or "user").strip() or "user"
             body = str(row.get("body") or "").strip()
@@ -57,10 +63,15 @@ class RoomContextManager:
                 continue
             # Keep the context factual: sender + exact user message.
             lines.append(f"{sender}: {body[:700]}")
+            key = sender.casefold()
+            if key not in seen_users:
+                seen_users.add(key)
+                users.append(sender)
         return RoomContext(
             room_name=str(room_name).strip(),
             conversation="\n".join(lines)[-6500:],
             summary=str((summary or {}).get("summary") or "").strip(),
             topic=str((summary or {}).get("topic") or "GENERAL").strip().upper() or "GENERAL",
             memory=tuple((memory or [])[-self.max_memory_items:]),
+            active_users=tuple(users[:12]),
         )
