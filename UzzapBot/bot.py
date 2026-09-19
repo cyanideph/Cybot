@@ -6,7 +6,7 @@ from config import (
     AI_ENABLED, AI_IDLE_MINUTES, AI_INACTIVE_MINUTES, AI_COOLDOWN_MINUTES,
     AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY, AI_DRY_RUN,
     AI_MAX_REQUESTS_PER_DAY, AI_MIN_CONFIDENCE, AI_LIVE_ENABLED, AI_ROLLOUT_STAGE, AI_CANARY_PERCENT, GEMINI_API_KEY, GEMINI_FLASH_MODEL,
-    AI_EMBEDDING_DIMENSIONS,
+    AI_EMBEDDING_DIMENSIONS, AI_CONFIG_SOURCES,
 )
 from database import Database
 from game_engine import GameEngine
@@ -208,6 +208,7 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             "ai_dry_run": bool(AI_DRY_RUN),
             "rollout_stage": AI_ROLLOUT_STAGE,
             "canary_percent": AI_CANARY_PERCENT,
+            "config_sources": AI_CONFIG_SOURCES,
         },
     )
     if not AI_ENABLED or not GEMINI_API_KEY:
