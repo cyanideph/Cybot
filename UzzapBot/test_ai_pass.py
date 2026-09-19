@@ -41,6 +41,8 @@ class FakeDB:
         self.events = []
         self.saved_states = []
         self.sent = []
+        self.memories = []
+        self.summaries = []
 
     def ai_requests_today(self):
         return 0
@@ -53,6 +55,18 @@ class FakeDB:
 
     def save_ai_event(self, event):
         self.events.append(event)
+
+    def load_room_summary(self, room_name):
+        return {"room_name": room_name, "summary": "", "topic": "GENERAL", "message_count": 0}
+
+    def load_room_memory(self, room_name, limit):
+        return []
+
+    def save_room_memory(self, memory):
+        self.memories.append(memory)
+
+    def save_room_summary(self, summary):
+        self.summaries.append(summary)
 
     def send(self, room_name, body):
         self.sent.append((room_name, body))

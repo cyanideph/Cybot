@@ -158,6 +158,39 @@ class Database:
         rows = self.client.table("uzzapbot_ai_events").select("id").gte("created_at", start).limit(1001).execute().data or []
         return len(rows)
 
+    def load_room_summary(self, room: str) -> dict[str, Any]:
+        rows = self.client.table("uzzapbot_room_summaries").select(
+            "room_name,summary,topic,message_count,source_through_message_id,updated_at"
+        ).eq("room_name", room).limit(1).execute().data or []
+        return rows[0] if rows else {"room_name": room, "summary": "", "topic": "GENERAL", "message_count": 0}
+
+    def save_room_summary(self, summary: dict[str, Any]) -> None:
+        self.client.table("uzzapbot_room_summaries").upsert({
+            "room_name": str(summary["room_name"]),
+            "summary": str(summary.get("summary") or "")[:4000],
+            "topic": str(summary.get("topic") or "GENERAL").upper()[:40],
+            "message_count": int(summary.get("message_count") or 0),
+            "source_through_message_id": summary.get("source_through_message_id"),
+        }, on_conflict="room_name").execute()
+
+    def load_room_memory(self, room: str, limit: int = 5) -> list[dict[str, Any]]:
+        rows = self.client.table("uzzapbot_room_memory").select(
+            "id,room_name,memory_type,content,metadata,source_message_id,created_at"
+        ).eq("room_name", room).order("created_at", desc=True).limit(max(1, min(int(limit), 20))).execute().data or []
+        return list(reversed(rows))
+
+    def save_room_memory(self, memory: dict[str, Any]) -> None:
+        from datetime import datetime, timedelta, timezone
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        self.client.table("uzzapbot_room_memory").insert({
+            "room_name": str(memory["room_name"]),
+            "memory_type": str(memory.get("memory_type") or "conversation"),
+            "content": str(memory.get("content") or "")[:2000],
+            "source_message_id": memory.get("source_message_id"),
+            "metadata": memory.get("metadata") or {},
+            "expires_at": memory.get("expires_at") or expires_at,
+        }).execute()
+
     def get_room_settings(self, room: str) -> dict[str, Any]:
         defaults = {"activated": False, "locked": False, "wcbot": False,
                     "welcome_message": "welcome to {room} {nickname}", "challenge_room": ""}
