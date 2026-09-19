@@ -152,6 +152,12 @@ class Database:
         }
         self.client.table("uzzapbot_ai_events").insert(payload).execute()
 
+    def ai_requests_today(self) -> int:
+        from datetime import datetime, timezone
+        start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        rows = self.client.table("uzzapbot_ai_events").select("id").gte("created_at", start).limit(1001).execute().data or []
+        return len(rows)
+
     def get_room_settings(self, room: str) -> dict[str, Any]:
         defaults = {"activated": False, "locked": False, "wcbot": False,
                     "welcome_message": "welcome to {room} {nickname}", "challenge_room": ""}
