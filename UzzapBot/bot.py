@@ -255,7 +255,7 @@ def main()->None:
                     elif sub=="next":
                         db.send(room,games.next_question(games.get(room))); persist(db,games,room)
                     elif sub=="clue":
-                        db.send(room,games.clue(room)); persist(db,games,room)
+                        db.send(room,games.clue(room,uid)); persist(db,games,room)
                     elif sub=="repost":
                         db.send(room,games.repost(room))
                     elif sub=="reveal":
