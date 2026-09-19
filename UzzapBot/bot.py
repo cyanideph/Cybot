@@ -357,13 +357,15 @@ def main()->None:
                     log.exception('COMMAND ERROR room="%s" sender="%s"',room,username)
                     try: db.send(room,"[c08]Something went wrong while processing that command. Please try again.")
                     except Exception: log.exception('FAILED TO SEND SAFE GAME ERROR room="%s"',room)
-            time.sleep(POLL_SECONDS)
-        except KeyboardInterrupt:
-            log.info("Bot stopped by user"); return
             try:
                 run_ai_pass(db, activity)
             except Exception:
+                # AI is optional; a provider or AI bug must never stop the
+                # deterministic bot/game loop.
                 log.exception("AI PASS ERROR")
+            time.sleep(POLL_SECONDS)
+        except KeyboardInterrupt:
+            log.info("Bot stopped by user"); return
         except Exception:
             log.exception("Bot loop error; reconnecting"); time.sleep(max(POLL_SECONDS,2.0))
 
