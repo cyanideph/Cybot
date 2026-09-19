@@ -120,6 +120,7 @@ class Database:
             "max_messages_per_day": int(state.get("max_messages_per_day", 20)),
             "last_human_activity_at": state.get("last_human_activity_at"),
             "last_bot_activity_at": state.get("last_bot_activity_at"),
+            "last_ai_analysis_at": state.get("last_ai_analysis_at"),
             "activity_state": str(state.get("activity_state", "INACTIVE")),
             "human_message_count_hour": int(state.get("human_message_count_hour", 0)),
             "human_message_count_day": int(state.get("human_message_count_day", 0)),
