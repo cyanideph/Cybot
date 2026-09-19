@@ -6,6 +6,7 @@ from config import (
     AI_ENABLED, AI_IDLE_MINUTES, AI_INACTIVE_MINUTES, AI_COOLDOWN_MINUTES,
     AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY, AI_DRY_RUN,
     AI_MAX_REQUESTS_PER_DAY, AI_MIN_CONFIDENCE, GEMINI_API_KEY, GEMINI_FLASH_MODEL,
+    AI_EMBEDDING_DIMENSIONS,
 )
 from database import Database
 from game_engine import GameEngine
@@ -13,6 +14,7 @@ from ai.activity_engine import ActivityEngine
 from ai.gemini_decision import GeminiDecisionClient
 from ai.decision_engine import DecisionEngine
 from ai.room_context import RoomContextManager
+from ai.embedding import GeminiEmbedding
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
@@ -164,6 +166,7 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
     if db.ai_requests_today() >= AI_MAX_REQUESTS_PER_DAY:
         return
     client = GeminiDecisionClient(GEMINI_API_KEY, GEMINI_FLASH_MODEL)
+    embedder = GeminiEmbedding(GEMINI_API_KEY, AI_EMBEDDING_DIMENSIONS)
     gate = DecisionEngine(AI_MIN_CONFIDENCE)
     for room_name in list(activity.rooms):
         eligibility = activity.eligibility(room_name)
@@ -174,11 +177,25 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             activity.get_or_create(room_name).record_ai_analysis()
             db.save_room_activity(activity.snapshot(room_name))
             continue
+        summary = db.load_room_summary(room_name)
+        stored_memory = db.load_room_memory(room_name, 5)
+        base_context = RoomContextManager(max_recent_messages=20, max_memory_items=5).build(
+            room_name, recent, summary, stored_memory
+        )
+        query_context = base_context.prompt_text()
+
+        query_embedding = embedder.embed_query(query_context)
+        semantic_memory = []
+        if query_embedding.ok and query_embedding.values:
+            try:
+                semantic_memory = db.semantic_room_memory(
+                    room_name, query_embedding.values, threshold=0.72, limit=5
+                )
+            except Exception:
+                log.exception('AI MEMORY RETRIEVAL ERROR room="%s"', room_name)
+
         context = RoomContextManager(max_recent_messages=20, max_memory_items=5).build(
-            room_name,
-            recent,
-            db.load_room_summary(room_name),
-            db.load_room_memory(room_name, 5),
+            room_name, recent, summary, semantic_memory or stored_memory
         )
         conversation = context.prompt_text()
         result = client.decide(conversation)
@@ -212,6 +229,16 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             "message_count": len(recent),
             "source_through_message_id": recent[-1].get("id"),
         })
+        document_embedding = embedder.embed_document(
+            conversation[-1800:], title=f"{room_name} room context"
+        )
+        if document_embedding.ok and document_embedding.values:
+            try:
+                latest = db.load_room_memory(room_name, 1)
+                if latest:
+                    db.save_room_memory_embedding(int(latest[-1]["id"]), document_embedding.values)
+            except Exception:
+                log.exception('AI MEMORY EMBEDDING SAVE ERROR room="%s"', room_name)
         if not AI_DRY_RUN and validated.get("allowed") and validated.get("response"):
             db.send(room_name, validated["response"])
 def main()->None:

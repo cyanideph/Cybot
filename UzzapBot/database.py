@@ -191,6 +191,26 @@ class Database:
             "expires_at": memory.get("expires_at") or expires_at,
         }).execute()
 
+    def save_room_memory_embedding(self, memory_id: int, values: list[float]) -> None:
+        vector = "[" + ",".join(f"{float(v):.9g}" for v in values) + "]"
+        self.client.table("uzzapbot_room_memory").update(
+            {"embedding": vector}
+        ).eq("id", int(memory_id)).execute()
+
+    def semantic_room_memory(self, room: str, query_embedding: list[float],
+                             threshold: float = 0.72, limit: int = 5) -> list[dict[str, Any]]:
+        vector = "[" + ",".join(f"{float(v):.9g}" for v in query_embedding) + "]"
+        result = self.client.rpc(
+            "uzzapbot_match_room_memory",
+            {
+                "p_room_name": room,
+                "p_query_embedding": vector,
+                "p_match_threshold": float(threshold),
+                "p_match_count": max(1, min(int(limit), 20)),
+            },
+        ).execute()
+        return result.data or []
+
     def get_room_settings(self, room: str) -> dict[str, Any]:
         defaults = {"activated": False, "locked": False, "wcbot": False,
                     "welcome_message": "welcome to {room} {nickname}", "challenge_room": ""}

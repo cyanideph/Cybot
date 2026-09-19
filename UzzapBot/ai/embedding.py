@@ -9,11 +9,13 @@ except ImportError:
     genai = None
     types = None
 
+
 @dataclass(frozen=True)
 class EmbeddingResult:
     ok: bool
     values: list[float] | None = None
     error: str = ""
+
 
 class GeminiEmbedding:
     def __init__(self, api_key: str, output_dimensionality: int = 768) -> None:
@@ -30,14 +32,14 @@ class GeminiEmbedding:
             self._client = genai.Client(api_key=self.api_key)
         return self._client
 
-    def embed_room(self, conversation: str) -> EmbeddingResult:
-        text = str(conversation or "").strip()
+    def _embed(self, text: str, prefix: str) -> EmbeddingResult:
+        text = str(text or "").strip()
         if not text:
-            return EmbeddingResult(False, error="empty_conversation")
+            return EmbeddingResult(False, error="empty_text")
         try:
             response = self._get_client().models.embed_content(
                 model="gemini-embedding-2",
-                contents=f"task: classification | query: {text[-6000:]}",
+                contents=f"{prefix}{text[-6000:]}",
                 config=types.EmbedContentConfig(
                     output_dimensionality=self.output_dimensionality
                 ),
@@ -48,6 +50,19 @@ class GeminiEmbedding:
             values = getattr(embeddings[0], "values", None)
             if not values:
                 return EmbeddingResult(False, error="empty_embedding")
-            return EmbeddingResult(True, values=[float(v) for v in values])
+            values = [float(v) for v in values]
+            if len(values) != self.output_dimensionality:
+                return EmbeddingResult(False, error=f"unexpected_embedding_dimensions:{len(values)}")
+            return EmbeddingResult(True, values=values)
         except Exception as exc:
             return EmbeddingResult(False, error=f"{type(exc).__name__}: {exc}")
+
+    def embed_query(self, query: str) -> EmbeddingResult:
+        return self._embed(query, "task: search result | query: ")
+
+    def embed_document(self, document: str, title: str = "none") -> EmbeddingResult:
+        safe_title = str(title or "none")[:200]
+        return self._embed(document, f"title: {safe_title} | text: ")
+
+    def embed_room(self, conversation: str) -> EmbeddingResult:
+        return self._embed(conversation, "task: classification | query: ")
