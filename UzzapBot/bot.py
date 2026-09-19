@@ -15,6 +15,9 @@ HELP="""[c04]╔═════════════════════�
 
 [c02]━━ PLAYER COMMANDS ━━
 [c16]/HELP[c09] — Show this help
+[c16]/JOIN[c09] — Join the active game before answering
+[c16]/LEAVE[c09] — Leave the current game
+[c16]/PLAYERS[c09] — Show players who joined the game
 [c16]/CLUE[c09] — Get a clue
 [c16]/REPOST[c09] — Repost the current question
 [c16]/STATUS[c09] — Show current game status
@@ -54,7 +57,10 @@ HELP="""[c04]╔═════════════════════�
 [c16]/CHALLENGE <room>[c09] — Set challenge room
 [c16]/CHALLENGE OFF[c09] — Disable challenge/mirror
 
-[c09]Players are registered automatically when they answer.
+[c09]🎮 To play, use /JOIN first.
+[c09]Only joined players' normal messages are checked as game answers.
+[c09]Users who have not joined can chat normally without affecting the game.
+[c09]Use /LEAVE to stop playing and /PLAYERS to see who is playing.
 [c09]Invalid or old commands are not accepted.
 [c14]UzzapBot Game Core 4.5[c09]."""
 
