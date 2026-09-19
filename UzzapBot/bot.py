@@ -8,44 +8,46 @@ from game_engine import GameEngine
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
 
-HELP="""[c03]UZZAPBOT GAME CORE 4
-Slash commands only.
+HELP="""[c04]╔══════════════════════════════╗
+[c14]        UZZAPBOT GAME CORE 4
+[c04]╚══════════════════════════════╝
+[c09]Slash commands only.
 
-PLAYER COMMANDS:
-/help
-/clue
-/sirit
-/hint
-/repost
-/status
-/score
-/leaderboard
-/version
+[c02]━━ PLAYER COMMANDS ━━
+[c16]/help[c09] — Show this help
+[c16]/clue[c09] — Get a clue
+[c16]/sirit[c09] — Get a clue
+[c16]/hint[c09] — Get a clue
+[c16]/repost[c09] — Repost the current question
+[c16]/status[c09] — Show game status
+[c16]/score[c09] — Show your score
+[c16]/leaderboard[c09] — Show leaderboard
+[c16]/version[c09] — Show bot version
 
-ADMIN COMMANDS:
-/game start <game> [points] [score_limit]
-/game start <game> [points] endless
-/game stop
-/game pause
-/game resume
-/game next
-/game clue
-/game repost
-/game reveal
-/game status
-/game score
-/game leaderboard
-/activate
-/lock
-/unlock
-/wcbot on
-/wcbot off
-/wmsg <message>
-/challenge <room>
-/challenge off
-/mirror off
+[c03]━━ ADMIN COMMANDS ━━
+[c16]/game start <game> [points] [score_limit]
+[c16]/game start <game> [points] endless
+[c16]/game stop[c09] — Stop the game
+[c16]/game pause[c09] — Pause the game
+[c16]/game resume[c09] — Resume the game
+[c16]/game next[c09] — Next question
+[c16]/game clue[c09] — Show clue
+[c16]/game repost[c09] — Repost question
+[c16]/game reveal[c09] — Reveal answer
+[c16]/game status[c09] — Show game status
+[c16]/game score[c09] — Show score
+[c16]/game leaderboard[c09] — Show leaderboard
+[c16]/activate[c09] — Activate room
+[c16]/lock[c09] — Lock game input
+[c16]/unlock[c09] — Unlock game input
+[c16]/wcbot on|off[c09] — Welcome bot
+[c16]/wmsg <message>[c09] — Set welcome message
+[c16]/challenge <room>[c09] — Set challenge room
+[c16]/challenge off[c09] — Disable challenge
+[c16]/mirror off[c09] — Disable mirror
 
-Legacy no-slash commands and !game commands are no longer accepted."""
+[c14]TIP: [c09]Use /help anytime to see commands.
+[c09]Legacy no-slash commands and !game commands are no longer accepted."""
 
 def is_admin(msg:dict)->bool:
     return str(msg.get("sender_id") or "") in ADMIN_IDS or str(msg.get("sender") or "").casefold() in ADMIN_USERNAMES
