@@ -46,6 +46,45 @@ def persist(db:Database,games:GameEngine,room:str)->None:
     state=games.export_state(room)
     if state: db.save_game_state(state)
 
+def parse_legacy_command(text:str):
+    """Translate legacy Game Core 4 commands into modern GameEngine actions."""
+    key=" ".join(text.strip().casefold().split())
+    starts={
+        "random quiz1":"random1",
+        "random quiz2":"random2",
+        "random quiz3":"random3",
+        "random gta":"randomgta",
+        "math on":"math",
+        "math":"math",
+        "tt on":"twist",
+        "tt":"twist",
+        "texttwist":"twist",
+        "english wordhunt":"wordhunt",
+        "wordhunt":"wordhunt",
+        "tagalog wordhunt":"summonnight2",
+        "tagaloghunt":"summonnight2",
+        "ph on":"filipino",
+        "trivia on":"trivia",
+        "anime on":"anime",
+        "logic on":"logic",
+        "game on":"random1",
+        "random on":"random1",
+    }
+    if key in starts: return ["start",starts[key]]
+    if key in {"game off","game stop","stop game"}: return ["stop"]
+    if key in {"help","game help","activate"}: return ["help"]
+    if key in {"clue","/clue","sirit","/sirit","hint","/hint"}: return ["clue"]
+    if key in {"repost","/repost","rep0st"}: return ["repost"]
+    if key in {"status","/status"}: return ["status"]
+    if key in {"score","/score"}: return ["score"]
+    if key in {"leaderboard","/leaderboard"}: return ["leaderboard"]
+    if key in {"reveal","/reveal"}: return ["reveal"]
+    if key in {"next","/next"}: return ["next"]
+    if key in {"pause","/pause"}: return ["pause"]
+    if key in {"resume","/resume"}: return ["resume"]
+    return None
+
+
 def parse_game_command(text:str):
     parts=text.split()
     if len(parts)>=3 and parts[1].casefold()=="random" and parts[2].casefold() in {"quiz1","quiz2","quiz3","gta"}:
@@ -75,13 +114,18 @@ def main()->None:
                 uid=str(msg.get("sender_id") or "")
                 if not room or not text: continue
                 try:
-                    if text.casefold().startswith("!game"):
+                    is_modern=text.casefold().startswith("!game")
+                    legacy=parse_legacy_command(text) if not is_modern else None
+                    if is_modern or legacy:
                         admin=is_admin(msg)
-                        log.info('COMMAND room="%s" sender="%s" body=%r admin=%s',room,username,text,admin)
-                        if not admin:
-                            db.send(room,"[c08]Game controls are admin-only during testing."); continue
-                        args=parse_game_command(text)
+                        log.info('COMMAND room="%s" sender="%s" body=%r admin=%s legacy=%s',room,username,text,admin,bool(legacy))
+                        args=legacy if legacy else parse_game_command(text)
                         sub=args[0].casefold() if args else "help"
+                        public_legacy={"help","clue","repost","score","status","leaderboard"}
+                        if not legacy and not admin:
+                            db.send(room,"[c08]Game controls are admin-only during testing."); continue
+                        if legacy and sub not in public_legacy and not admin:
+                            db.send(room,"[c08]Game controls are admin-only during testing."); continue
                         if sub=="help": db.send(room,HELP)
                         elif sub=="start":
                             game=args[1] if len(args)>1 else "math"
