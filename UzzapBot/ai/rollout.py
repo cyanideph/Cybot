@@ -5,11 +5,35 @@ network service, writes to Supabase, sends messages, or changes configuration.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping\nimport hashlib
+import hashlib
+from typing import Any, Mapping
 
 from ai.security import validate_ai_security_config
 
 STAGES = ("disabled", "dry_run", "canary", "live")
+
+
+def canary_selected(stable_key: str, percent: int | str) -> bool:
+    """Return a deterministic canary assignment for a stable room/user key.
+
+    A SHA-256 bucket makes the assignment stable across restarts and workers.
+    Invalid percentages fail closed; 0 selects nobody and 100 selects everyone.
+    """
+    try:
+        value = int(percent)
+    except (TypeError, ValueError):
+        return False
+    if value <= 0:
+        return False
+    if value >= 100:
+        return True
+    key = str(stable_key or "").strip()
+    if not key:
+        return False
+    bucket = int.from_bytes(
+        hashlib.sha256(key.encode("utf-8")).digest()[:4], "big"
+    ) % 100
+    return bucket < value
 
 
 def evaluate_rollout(config: Mapping[str, Any]) -> dict[str, Any]:
