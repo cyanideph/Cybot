@@ -161,3 +161,75 @@ def test_random_cycle_state_persists_through_export_restore():
     assert s2.cycle_number==s.cycle_number
     assert s2.cycle_games_used==s.cycle_games_used
     assert s2.recent_games==s.recent_games
+
+
+def test_answer_matching_accepts_intended_typos_but_rejects_partials_and_empty():
+    e=GameEngine()
+
+    # Intended typo tolerance for long text answers.
+    assert e._answer_matches("Micheal Jackson", "Michael Jackson")
+    assert e._answer_matches("Beatlse", "Beatles")
+
+    # Exact answers still work after normalization.
+    assert e._answer_matches("  CAFÉ  ", "cafe")
+
+    # Partial names/answers must not receive credit.
+    assert not e._answer_matches("Michael", "Michael Jackson")
+    assert not e._answer_matches("Jackson", "Michael Jackson")
+    assert not e._answer_matches("", "Michael Jackson")
+    assert not e._answer_matches("   ", "Michael Jackson")
+
+
+def test_answer_matching_never_uses_fuzzy_logic_for_numeric_answers():
+    e=GameEngine()
+
+    assert e._answer_matches("42", "42")
+    assert not e._answer_matches("43", "42")
+    assert not e._answer_matches("420", "42")
+    assert not e._answer_matches("041", "42")
+
+
+def test_gta_question_text_cannot_be_used_as_the_artist_answer():
+    e=GameEngine()
+    session=e.start("gta-anti-leak", "gtaopm", 10, 100)
+    e.join("gta-anti-leak", "u1", "alice", "Alice")
+
+    # The game exposes the song title but the required answer is the artist.
+    session.question = "TiTLE: 'Buwan'\\n~> Guess The Artist [OPM]"
+    session.answer = "Juan Karlos"
+
+    leaked_question_text = "Buwan"
+    correct, response = e.answer(
+        "gta-anti-leak", "u1", "alice", "Alice", leaked_question_text
+    )
+
+    assert correct is False
+    assert response
+    player=session.players["u1"]
+    assert player.score == 0
+    assert player.correct == 0
+    assert player.attempts == 1
+
+
+def test_gta_artist_matching_allows_small_typo_but_not_song_title():
+    e=GameEngine()
+    session=e.start("gta-artist-match", "gtaforeign", 10, 100)
+    e.join("gta-artist-match", "u1", "alice", "Alice")
+
+    session.question = "TiTLE: 'Thriller'\\n~> Guess The Artist"
+    session.answer = "Michael Jackson"
+
+    wrong, _ = e.answer(
+        "gta-artist-match", "u1", "alice", "Alice", "Thriller"
+    )
+    assert wrong is False
+    assert session.players["u1"].score == 0
+
+    # Restore the same question/answer because a wrong answer does not advance.
+    correct, response = e.answer(
+        "gta-artist-match", "u1", "alice", "Alice", "Micheal Jackson"
+    )
+    assert correct is True
+    assert response
+    assert session.players["u1"].correct == 1
+    assert session.players["u1"].score == 10
