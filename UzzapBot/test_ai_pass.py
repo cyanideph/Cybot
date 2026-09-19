@@ -44,9 +44,13 @@ class FakeDB:
         self.memories = []
         self.summaries = []
         self.embeddings = []
+        self.usage = {"requests_hour": 0, "requests_day": 0, "messages_hour": 0, "messages_day": 0}
 
     def ai_requests_today(self):
-        return 0
+        return self.usage["requests_day"]
+
+    def ai_usage(self, room_name=None):
+        return dict(self.usage)
 
     def recent_room_messages(self, room_name, limit):
         return [{"sender": "alice", "body": "Anime sounds fun"}]
