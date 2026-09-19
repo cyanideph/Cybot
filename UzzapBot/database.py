@@ -1,7 +1,6 @@
 """Supabase adapter used by the Pydroid bot."""
 from __future__ import annotations
 import logging
-import re
 from typing import Any
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY, BOT_SENDER_ID, BOT_NAME
@@ -57,14 +56,9 @@ class Database:
                 break
         return result
 
-    def random_emoticon(self) -> str:
-        r = self.client.rpc("uzzapbot_random_emoticon", {}).execute()
-        return str(r.data or "")
-
     def send(self, room_name: str, body: str) -> None:
-        # Keep bot output compatible with the legacy Uzzap client: replace
-        # ordinary Unicode emoji with an app-picker emoticon token.
-        body = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", lambda _: self.random_emoticon(), str(body))
+        """Store bot output unchanged; Android owns all emoticon rendering."""
+        body = str(body)
         log.info('SEND room="%s" body=%r', room_name, body)
         self.client.rpc(
             "room_bot_message",
@@ -94,8 +88,6 @@ class Database:
         self.client.table("uzzapbot_room_settings").upsert(payload, on_conflict="room_name").execute()
 
     def poll_new_participants(self, seen: set[str]) -> list[dict[str, Any]]:
-        # Only consider recently active participants; avoids a full table
-        # scan as membership grows.
         from datetime import datetime, timedelta, timezone
         cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
         rows = self.client.table("room_participants").select(
@@ -162,9 +154,6 @@ class Database:
         return states
 
     def save_game_state(self, state: dict[str, Any]) -> int:
-        # Persist the complete exported state in one SECURITY DEFINER RPC.
-        # This makes session + players atomic and preserves newer fields
-        # (clues, cycle state, reply history, etc.) across restarts.
         result = self.client.rpc(
             "uzzapbot_save_game_state",
             {"p_state": state},
