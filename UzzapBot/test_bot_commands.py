@@ -71,3 +71,11 @@ def test_bare_slash_is_ignored():
 def test_challenge_off_rejects_extra_words():
     assert parse_command("/CHALLENGE off now") == ["invalid_command", "challenge"]
     assert parse_command("/CHALLENGE OFF") == ["challenge_off"]
+
+
+def test_admin_authorization_uses_auth_user_id_only(monkeypatch):
+    from bot import is_admin
+    monkeypatch.setattr("bot.ADMIN_IDS", {"admin-uuid"})
+    assert is_admin({"sender_id": "admin-uuid", "sender": "anything"})
+    assert not is_admin({"sender_id": "other-uuid", "sender": "admin"})
+    assert not is_admin({"sender_id": "", "sender": "admin"})
