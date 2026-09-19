@@ -103,7 +103,7 @@ def parse_command(text:str):
         if key in multi_game_commands:
             return ["start",multi_game_commands[key]]
 
-    simple_commands={"help","clue","repost","status","score","leaderboard","version","stop","pause","resume","next","reveal","activate","lock","unlock"}
+    simple_commands={"help","clue","repost","status","score","leaderboard","version","join","leave","players","stop","pause","resume","next","reveal","activate","lock","unlock"}
     if command in simple_commands:
         if args:
             return ["invalid_command", command]
@@ -173,7 +173,7 @@ def main()->None:
                     if not args: continue
                     admin=is_admin(msg)
                     sub=args[0].casefold()
-                    player_commands={"help","clue","repost","status","score","leaderboard","version","start"}
+                    player_commands={"help","clue","repost","status","score","leaderboard","version","join","leave","players","start"}
                     admin_commands={"stop","pause","resume","next","reveal","activate","lock","unlock","wcbot","wmsg","challenge","challenge_off"}
                     log.info('COMMAND room="%s" sender="%s" body=%r admin=%s',room,username,text,admin)
 
@@ -191,6 +191,16 @@ def main()->None:
                     if sub=="help": db.send(room,HELP)
                     elif sub=="version":
                         db.send(room,"[c11]🤖 UzzapBot[c01] [c14]v4.5[c01]\n[c02]🎮 Game Core:[c01] [c14]4.5[c01]\n[c04]🕹️ Smart Game Modes[c01]\n[c07]💡 Progressive Clues[c01]\n[c18]🔄 Smart Game Cycles[c01]\n[c06]🏆 Scores & Leaderboards[c01]\n[c03]⚡ Fast Answer Checking[c01]\n[c02]🟢 Status: ONLINE[c01]")
+                    elif sub=="join":
+                        ok,response=games.join(room,uid,username,username)
+                        if ok: persist(db,games,room)
+                        db.send(room,response)
+                    elif sub=="leave":
+                        ok,response=games.leave(room,uid)
+                        if ok: persist(db,games,room)
+                        db.send(room,response)
+                    elif sub=="players":
+                        db.send(room,games.players_text(room))
                     elif sub=="activate":
                         cfg=room_settings(room,db); cfg["activated"]=True; cfg["locked"]=False; save_room_settings(db,room)
                         db.send(room,"[c03]UzzapBot ACTIVATED in this room.")
