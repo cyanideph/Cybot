@@ -78,8 +78,6 @@ class Database:
                 if not is_bot_message and self.claim_message(message_id):
                     result.append(x)
 
-                # This is deliberately per-message. If claim_message() or the
-                # cursor RPC raises, last_id remains at the previous message.
                 self._advance_cursor(self.last_id, message_id)
 
             if len(rows) < 100:
@@ -117,6 +115,14 @@ class Database:
         }
         self.client.table("uzzapbot_room_settings").upsert(payload, on_conflict="room_name").execute()
 
+    def claim_welcome(self, room: str, username: str) -> bool:
+        """Durably claim a welcome so restarts cannot send it twice."""
+        r = self.client.rpc(
+            "uzzapbot_claim_welcome",
+            {"p_room_name": room, "p_username": username},
+        ).execute()
+        return bool(r.data)
+
     def poll_new_participants(self, seen: set[str]) -> list[dict[str, Any]]:
         from datetime import datetime, timedelta, timezone
         cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
@@ -130,9 +136,21 @@ class Database:
             if not room or not username:
                 continue
             key = room + "\x00" + username.casefold()
-            if key not in seen:
+            if key in seen:
+                continue
+
+            # Only consume the durable welcome token when WCBOT is actually
+            # enabled. This preserves the ability to enable WCBOT for a recent
+            # joiner while preventing duplicate welcomes after a restart.
+            settings = self.get_room_settings(room)
+            if not bool(settings.get("wcbot")):
+                continue
+            if not self.claim_welcome(room, username):
                 seen.add(key)
-                new.append(row)
+                continue
+
+            seen.add(key)
+            new.append(row)
         return new
 
     def profile(self, user_id: str | None, username: str | None) -> dict[str, Any] | None:
