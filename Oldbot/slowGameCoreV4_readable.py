@@ -1906,7 +1906,7 @@ def repost_multiplication():
 
 
 wordx = ''
-def generate_word_hunt_question():
+def generate_love_word_question():
     marklouise = 'love'
     while True : 
         word3 = get_english_word(random.randint(1, 22500))
@@ -2938,7 +2938,7 @@ def select_random_game():
     if marklouise == 'multiply' : 
         generate_multiplication_question()
     if marklouise == 'love' : 
-        generate_word_hunt_question()
+        generate_love_word_question()
     if marklouise == 'add1' : 
         generate_addition_variant()
     if marklouise == 'minus1' : 
