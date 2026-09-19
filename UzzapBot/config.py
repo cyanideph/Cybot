@@ -26,7 +26,22 @@ AI_DRY_RUN = os.getenv("AI_DRY_RUN", "true").strip().casefold() == "true"
 # A second explicit global gate is required before any live AI response can be sent.
 AI_LIVE_ENABLED = os.getenv("AI_LIVE_ENABLED", "false").strip().casefold() == "true"
 AI_ROLLOUT_STAGE = os.getenv("AI_ROLLOUT_STAGE", "disabled").strip().casefold()
-AI_CANARY_PERCENT = int(os.getenv("AI_CANARY_PERCENT", "1"))
+
+def _parse_canary_percent(value: str | None) -> int:
+    """Parse the canary percentage with a fail-closed result.
+
+    Canary rollout is intentionally limited to 1-10 percent by the rollout
+    gate. Returning 0 for malformed/out-of-range values prevents configuration
+    parsing from crashing bot startup and causes the canary gate to reject the
+    rollout rather than accidentally enabling traffic.
+    """
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+    return parsed if 1 <= parsed <= 10 else 0
+
+AI_CANARY_PERCENT = _parse_canary_percent(os.getenv("AI_CANARY_PERCENT", "1"))
 AI_IDLE_MINUTES = int(os.getenv("AI_IDLE_MINUTES", "15"))
 AI_INACTIVE_MINUTES = int(os.getenv("AI_INACTIVE_MINUTES", "60"))
 AI_COOLDOWN_MINUTES = int(os.getenv("AI_COOLDOWN_MINUTES", "30"))
