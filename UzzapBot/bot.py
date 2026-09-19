@@ -55,6 +55,10 @@ def persist(db:Database,games:GameEngine,room:str)->None:
     state=games.export_state(room)
     if state: db.save_game_state(state)
 
+ROOM_SETTINGS = {}
+def room_settings(room: str) -> dict:
+    return ROOM_SETTINGS.setdefault(room, {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":""})
+
 def parse_legacy_command(text:str):
     """Translate legacy Game Core 4 commands into modern GameEngine actions."""
     key=" ".join(text.strip().casefold().split())
@@ -84,14 +88,17 @@ def parse_legacy_command(text:str):
     }
     if key in starts: return ["start",starts[key]]
     if key in {"game off","game stop","stop game"}: return ["stop"]
-    if key in {"challenge off","mirror off"}: return ["legacy_noop",key]
-    if key in {"lock"}: return ["pause"]
-    if key in {"unlock"}: return ["resume"]
+    if key == "activate": return ["activate"]
+    if key == "challenge off": return ["challenge_off"]
+    if key == "mirror off": return ["mirror_off"]
+    if key == "lock": return ["lock"]
+    if key == "unlock": return ["unlock"]
     if key in {"version","versi0n"}: return ["version"]
-    if key.startswith("/challenge "): return ["legacy_noop","challenge"]
-    if key.startswith("/wmsg "): return ["legacy_noop","wmsg"]
-    if key in {"/wcbot on","/wcbot off","wcbot on","wcbot off"}: return ["legacy_noop","wcbot"]
-    if key in {"help","game help","activate"}: return ["help"]
+    if key.startswith("/challenge "): return ["challenge", text.strip()[11:].strip()]
+    if key in {"/challenge off","/challenge stop"}: return ["challenge_off"]
+    if key.startswith("/wmsg "): return ["wmsg", text.strip()[6:].strip()]
+    if key in {"/wcbot on","/wcbot off","wcbot on","wcbot off"}: return ["wcbot", key.rsplit(" ",1)[-1]]
+    if key in {"help","game help"}: return ["help"]
     if key in {"clue","/clue","sirit","/sirit","hint","/hint"}: return ["clue"]
     if key in {"repost","/repost","rep0st"}: return ["repost"]
     if key in {"status","/status"}: return ["status"]
@@ -147,6 +154,35 @@ def main()->None:
                             db.send(room,"[c08]Game controls are admin-only during testing."); continue
                         if sub=="help": db.send(room,HELP)
                         elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4 compatibility layer on the modern UzzapBot architecture.")
+                        elif sub=="activate":
+                            cfg=room_settings(room); cfg["activated"]=True; cfg["locked"]=False
+                            db.send(room,"[c10]UzzapBot ACTIVATED in this room.")
+                        elif sub=="lock":
+                            cfg=room_settings(room); cfg["locked"]=True
+                            s=games.get(room)
+                            if s: s.paused=True; persist(db,games,room)
+                            db.send(room,"[c12]Systems LOCK!!! Game input is locked in this room.")
+                        elif sub=="unlock":
+                            cfg=room_settings(room); cfg["locked"]=False
+                            s=games.get(room)
+                            if s: s.paused=False; persist(db,games,room)
+                            db.send(room,"[c10]Systems UNLOCK!!! Game input is enabled in this room.")
+                        elif sub=="wcbot":
+                            cfg=room_settings(room); cfg["wcbot"]=(len(args)>1 and args[1].casefold()=="on")
+                            db.send(room,"[c03]Welcome bot " + ("ON." if cfg["wcbot"] else "OFF."))
+                        elif sub=="wmsg":
+                            cfg=room_settings(room); message=" ".join(args[1:]).strip()
+                            if not message: db.send(room,"[c08]Usage: /wmsg <message>")
+                            else: cfg["welcome_message"]=message; db.send(room,"[c10]Welcome message updated.")
+                        elif sub=="challenge":
+                            cfg=room_settings(room); target=" ".join(args[1:]).strip()
+                            if not target: db.send(room,"[c08]Usage: /challenge <room>")
+                            else: cfg["challenge_room"]=target; db.send(room,f"[c10]Challenge room set to: {target}")
+                        elif sub=="challenge_off":
+                            room_settings(room)["challenge_room"]=""; db.send(room,"[c08]Challenge room disabled.")
+                        elif sub=="mirror_off":
+                            room_settings(room)["challenge_room"]=""; db.send(room,"[c08]Mirror/challenge posting disabled.")
+                        elif sub=="legacy_noop": db.send(room,"[c08]Legacy command recognized. This feature is handled by the modern room architecture.")
                         elif sub=="legacy_noop": db.send(room,"[c08]Legacy command recognized. This feature is handled by the modern room architecture.")
                         elif sub=="start":
                             game=args[1] if len(args)>1 else "math"
@@ -188,12 +224,17 @@ def main()->None:
                         else: db.send(room,"[c08]Unknown game command. Use !game help")
                         continue
                     session=games.get(room)
+                    cfg=room_settings(room)
+                    if session and cfg.get("locked"):
+                        continue
                     if session and not text.startswith("/"):
                         profile=db.profile(uid,username) or {}
                         nickname=str(profile.get("nickname") or username)
                         _,response=games.answer(room,uid,username,nickname,text)
                         if response:
                             persist(db,games,room); db.send(room,response)
+                            target=cfg.get("challenge_room")
+                            if target and target != room: db.send(target,response)
                 except Exception as exc:
                     log.exception('COMMAND ERROR room="%s" sender="%s"',room,username)
                     try:
