@@ -92,6 +92,19 @@ class GameEngine:
         threshold=0.92 if max(len(answer_n),len(guess_n))<=8 else 0.88
         return ratio>=threshold
 
+    def _parse_qa(self,rows):
+        """Parse legacy CSV-like question rows as (id, question, answer)."""
+        parsed=[]
+        for row in rows:
+            parts=[p.strip() for p in str(row).split(",",2)]
+            if len(parts)!=3:
+                continue
+            ident,question,answer=parts
+            if not ident or not question or not answer:
+                continue
+            parsed.append((ident,question,answer))
+        return parsed
+
     def _pick_qa(self,rows,used):
         qa=self._parse_qa(rows)
         if not qa: raise ValueError("dataset has no valid question/answer rows")
