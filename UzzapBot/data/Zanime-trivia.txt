@@ -29,7 +29,7 @@
 29,Q.The wielder of the madogu Ensui,Tokiya Mikagami
 30,Q.The protagonist of YamaNade. She loves gory movies and has 3 anatomical figures in her room,Sunako Nakahara
 31,Q.Who is this rogue samurai who wielded reversed bladed sword & more commonly known as the Battousai?Who is the reincarnation of the priestess named Kikyo?,Kagome Higurashi
-32,Who is this rogue samurai who wielded reversed bladed sword & more commonly known as the Battousai?,Kenshin Himura
+32,Q.Who is this rogue samurai who wielded reversed bladed sword & more commonly known as the Battousai?,Kenshin Himura
 34,Q.Who is the Seigaku Tennis club member that is nicknamed as the "Tennis Prodigy"?,Shusuke Fuji
 35,Q.Who is the Cloud Guardian of the Vongola Family?,Kyoya Hibari
 36,Q.Who is the playing coach of Shoyo High?,Kenji Fujima
@@ -137,7 +137,7 @@
 146,Q.An organization of the Tomugara who moved into the human world several millenia ago?,Bal Masque
 147,Q.(SNS)she is one of the Trinity of the Bal Masque entitled as "The Priestess"?,Hecate
 148,Q.The goddess that ends up contratually bound to Keiichi Murisato after Accidentally dailed the GRO?,Belldandy
-149,She is the Yggdrasil System Administrator and Manager?,Urd
+149,Q.She is the Yggdrasil System Administrator and Manager?,Urd
 150,Q.(Melancholy of Haruhi)SOS brigade.. SOS stands for what in English?,Save the world by Overloading it with fun Haruhi Suzumiya
 151,Q.They are formerly human spirits that were not sent to soul society in due time after death?,Hollow
 152,Q.a stronger form of hollow that have acquired humanoid form and some of the powers of Shinigami?,Arancar
@@ -154,7 +154,7 @@
 163,Q.The first RAVE Master. attempted to destroy Sinclaire the mother of the Dark Bring with his sword?,Shiba
 164,Q.She bares a marked resemblance to Resha Valintine a girl with the power of etherion?,ELIE
 165,Q.(HunterXHunter)The founder and leader of the Genei Ryodan?,Chrolo Lucifer
-166,She was the teacher of Wing the man whom first taugth Nen to Gon and Killua?,Biscuit Krueger
+166,Q.She was the teacher of Wing the man whom first taugth Nen to Gon and Killua?,Biscuit Krueger
 167,Q.Her goal is in the game was to get the Gem found only in Greed Island "Blue planet"?,Biscuit Krueger
 168,Q.(HXH)The secret identity of the Greed Island Bomber?,Genthru
 169,Q.(HXH)the third youngest zoldyk. He is considered the most talented Zoldyk of his generation?,Killua
