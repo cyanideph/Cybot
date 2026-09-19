@@ -56,8 +56,13 @@ def persist(db:Database,games:GameEngine,room:str)->None:
     if state: db.save_game_state(state)
 
 ROOM_SETTINGS = {}
-def room_settings(room: str) -> dict:
-    return ROOM_SETTINGS.setdefault(room, {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":""})
+def room_settings(room: str, db: Database | None = None) -> dict:
+    if room not in ROOM_SETTINGS:
+        ROOM_SETTINGS[room] = db.get_room_settings(room) if db else {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":""}
+    return ROOM_SETTINGS[room]
+
+def save_room_settings(db: Database, room: str) -> None:
+    db.save_room_settings(room, ROOM_SETTINGS[room])
 
 def parse_legacy_command(text:str):
     """Translate legacy Game Core 4 commands into modern GameEngine actions."""
@@ -129,10 +134,23 @@ def main()->None:
     validate()
     db,games=Database(),GameEngine()
     restored=games.restore_all(db.load_game_state())
+    seen_participants=set()
+    db.poll_new_participants(seen_participants)
     log.info("Restored %d persistent game session(s)",restored)
     log.info("%s connected; polling every %.1fs",BOT_NAME,POLL_SECONDS)
     while True:
         try:
+            for participant in db.poll_new_participants(seen_participants):
+                room=str(participant.get("room_name") or "").strip()
+                username=str(participant.get("username") or "").strip()
+                if room and username:
+                    cfg=room_settings(room, db)
+                    if cfg.get("wcbot"):
+                        profile=db.profile(None, username) or {}
+                        nickname=str(profile.get("nickname") or username)
+                        body=str(cfg.get("welcome_message") or "welcome to {room} {nickname}")
+                        body=body.replace("{room}",room).replace("{nickname}",nickname).replace("{username}",username)
+                        db.send(room,body)
             for msg in db.poll_messages():
                 room=str(msg.get("room_name") or "").strip()
                 text=str(msg.get("body") or "").strip()
@@ -155,31 +173,31 @@ def main()->None:
                         if sub=="help": db.send(room,HELP)
                         elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4 compatibility layer on the modern UzzapBot architecture.")
                         elif sub=="activate":
-                            cfg=room_settings(room); cfg["activated"]=True; cfg["locked"]=False
+                            cfg=room_settings(room,db); cfg["activated"]=True; cfg["locked"]=False; save_room_settings(db,room)
                             db.send(room,"[c10]UzzapBot ACTIVATED in this room.")
                         elif sub=="lock":
-                            cfg=room_settings(room); cfg["locked"]=True
+                            cfg=room_settings(room,db); cfg["locked"]=True; save_room_settings(db,room)
                             s=games.get(room)
                             if s: s.paused=True; persist(db,games,room)
                             db.send(room,"[c12]Systems LOCK!!! Game input is locked in this room.")
                         elif sub=="unlock":
-                            cfg=room_settings(room); cfg["locked"]=False
+                            cfg=room_settings(room,db); cfg["locked"]=False; save_room_settings(db,room)
                             s=games.get(room)
                             if s: s.paused=False; persist(db,games,room)
                             db.send(room,"[c10]Systems UNLOCK!!! Game input is enabled in this room.")
                         elif sub=="wcbot":
-                            cfg=room_settings(room); cfg["wcbot"]=(len(args)>1 and args[1].casefold()=="on")
+                            cfg=room_settings(room,db); cfg["wcbot"]=(len(args)>1 and args[1].casefold()=="on"); save_room_settings(db,room)
                             db.send(room,"[c03]Welcome bot " + ("ON." if cfg["wcbot"] else "OFF."))
                         elif sub=="wmsg":
-                            cfg=room_settings(room); message=" ".join(args[1:]).strip()
+                            cfg=room_settings(room,db); message=" ".join(args[1:]).strip()
                             if not message: db.send(room,"[c08]Usage: /wmsg <message>")
-                            else: cfg["welcome_message"]=message; db.send(room,"[c10]Welcome message updated.")
+                            else: cfg["welcome_message"]=message; save_room_settings(db,room); db.send(room,"[c10]Welcome message updated.")
                         elif sub=="challenge":
-                            cfg=room_settings(room); target=" ".join(args[1:]).strip()
+                            cfg=room_settings(room,db); target=" ".join(args[1:]).strip()
                             if not target: db.send(room,"[c08]Usage: /challenge <room>")
-                            else: cfg["challenge_room"]=target; db.send(room,f"[c10]Challenge room set to: {target}")
+                            else: cfg["challenge_room"]=target; save_room_settings(db,room); db.send(room,f"[c10]Challenge room set to: {target}")
                         elif sub=="challenge_off":
-                            room_settings(room)["challenge_room"]=""; db.send(room,"[c08]Challenge room disabled.")
+                            room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Challenge room disabled.")
                         elif sub=="mirror_off":
                             room_settings(room)["challenge_room"]=""; db.send(room,"[c08]Mirror/challenge posting disabled.")
                         elif sub=="legacy_noop": db.send(room,"[c08]Legacy command recognized. This feature is handled by the modern room architecture.")
@@ -224,7 +242,7 @@ def main()->None:
                         else: db.send(room,"[c08]Unknown game command. Use !game help")
                         continue
                     session=games.get(room)
-                    cfg=room_settings(room)
+                    cfg=room_settings(room,db)
                     if session and cfg.get("locked"):
                         continue
                     if session and not text.startswith("/"):
