@@ -31,9 +31,9 @@ AI_MAX_MESSAGES_PER_DAY = int(os.getenv("AI_MAX_MESSAGES_PER_DAY", "20"))
 AI_MAX_REQUESTS_PER_DAY = int(os.getenv("AI_MAX_REQUESTS_PER_DAY", "100"))
 AI_MIN_CONFIDENCE = float(os.getenv("AI_MIN_CONFIDENCE", "0.75"))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-3-flash-preview")
+GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-3.8-flash")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2")
-AI_EMBEDDING_DIMENSIONS = int(os.getenv("AI_EMBEDDING_DIMENSIONS", "768")).strip()
+AI_EMBEDDING_DIMENSIONS = int(os.getenv("AI_EMBEDDING_DIMENSIONS", "768"))
 
 def validate() -> None:
     missing = [
