@@ -91,3 +91,36 @@ def test_activity_engine_loads_persisted_state():
     snapshot = engine.snapshot("Cebu")
     assert snapshot["human_message_count_hour"] == 2
     assert snapshot["human_message_count_day"] == 4
+
+
+def test_ai_eligibility_does_not_use_human_message_budget():
+    now = datetime(2026, 9, 19, 12, 0, tzinfo=UTC)
+    activity = RoomActivity(
+        "Cebu",
+        enabled=True,
+        idle_threshold_seconds=60,
+        inactive_threshold_seconds=300,
+        cooldown_seconds=600,
+        max_messages_per_hour=3,
+        max_messages_per_day=20,
+    )
+    for offset in range(3):
+        activity.record_human_message(now - timedelta(seconds=90 + offset))
+    decision = activity.ai_eligibility(now)
+    assert decision["state"] == "QUIET"
+    assert decision["eligible"] is True
+
+
+def test_activity_snapshot_and_restore_keep_ai_analysis_timestamp():
+    now = datetime(2026, 9, 19, 12, 0, tzinfo=UTC)
+    analysis_at = now - timedelta(minutes=5)
+    engine = ActivityEngine({"enabled": True})
+    activity = engine.get_or_create("Cebu")
+    activity.last_ai_analysis_at = analysis_at
+
+    snapshot = engine.snapshot("Cebu")
+    assert snapshot["last_ai_analysis_at"] == analysis_at.isoformat()
+
+    restored_engine = ActivityEngine({"enabled": True})
+    assert restored_engine.load([snapshot]) == 1
+    assert restored_engine.snapshot("Cebu")["last_ai_analysis_at"] == analysis_at.isoformat()

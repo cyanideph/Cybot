@@ -119,9 +119,8 @@ class RoomActivity:
             if (now_check - self.last_ai_analysis_at).total_seconds() < self.cooldown_seconds:
                 eligible = False
                 reasons.append("ai_analysis_cooldown")
-        if not self.message_budget_available():
-            eligible = False
-            reasons.append("message_budget")
+        # Human traffic determines room state. It must not consume the
+        # AI response budget; AI budgets are enforced by the AI-event ledger.
 
         return {
             "room_name": self.room_name,
@@ -146,6 +145,7 @@ class RoomActivity:
             "max_messages_per_day": self.max_messages_per_day,
             "last_human_activity_at": self.last_human_activity_at.isoformat() if self.last_human_activity_at else None,
             "last_bot_activity_at": self.last_bot_activity_at.isoformat() if self.last_bot_activity_at else None,
+            "last_ai_analysis_at": self.last_ai_analysis_at.isoformat() if self.last_ai_analysis_at else None,
             "activity_state": self.activity_state,
             "human_message_count_hour": self.human_message_count_hour,
             "human_message_count_day": self.human_message_count_day,
