@@ -47,7 +47,7 @@ def test_endless_does_not_finish_at_limit():
 
 def test_unicode_normalization_and_scramble():
     e=GameEngine()
-    assert e._normalize(" Café ")=="café"
+    assert e._normalize(" Café ")=="cafe"
     assert e._normalize(e._scramble("HELLO"))!="hello"
 
 
@@ -95,3 +95,33 @@ def test_clue_progress_resets_for_next_question():
     games._next(session)
     assert session.clue_level==0
     assert session.clue_text==""
+
+
+def test_better_answer_matching_accepts_small_typo_but_protects_math():
+    e=GameEngine()
+    assert e._answer_matches("Micheal Jackson","Michael Jackson")
+    assert e._answer_matches("cafe","café")
+    assert not e._answer_matches("123","124")
+    assert not e._answer_matches("abc","abcd")
+
+
+def test_random_game_types_do_not_repeat_recently():
+    e=GameEngine()
+    s=e.start("random-repeat-room","random3",10,100)
+    seen=[]
+    for _ in range(12):
+        game=e._choose_random_game(s)
+        seen.append(game)
+    for i in range(2,len(seen)):
+        assert seen[i] != seen[i-1]
+        assert seen[i] != seen[i-2]
+
+
+def test_generated_math_questions_are_not_repeated():
+    e=GameEngine()
+    s=e.start("generated-repeat-room","add",10,100)
+    first=s.question
+    for _ in range(25):
+        e._next(s)
+    assert first not in [s.question]
+    assert len([x for x in s.used_questions if x.startswith("generated:")]) >= 20
