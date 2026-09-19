@@ -1,6 +1,7 @@
 """Supabase adapter used by the Pydroid bot."""
 from __future__ import annotations
 import logging
+import re
 from typing import Any
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY, BOT_SENDER_ID, BOT_NAME
@@ -45,12 +46,15 @@ class Database:
                 break
         return result
 
+    def random_emoticon(self) -> str:
+        r = self.client.rpc("uzzapbot_random_emoticon", {}).execute()
+        return str(r.data or "")
+
     def send(self, room_name: str, body: str) -> None:
+        # Keep bot output compatible with the legacy Uzzap client: replace
+        # ordinary Unicode emoji with an app-picker emoticon token.
+        body = re.sub(r"[\\U0001F300-\\U0001FAFF\\u2600-\\u27BF]", lambda _: self.random_emoticon(), str(body))
         log.info('SEND room="%s" body=%r', room_name, body)
-        # room_messages.sender_id references auth.users.id. The current
-        # UzzapBot profile predates its Auth identity, so its configured UUID
-        # is not a valid auth.users row. System messages may legally have a
-        # NULL sender_id, and sender/is_system identify them as bot messages.
         self.client.rpc(
             "room_bot_message",
             {"p_room": room_name, "p_body": body, "p_is_system": False},
@@ -111,7 +115,7 @@ class Database:
 
     def load_game_state(self) -> list[dict[str, Any]]:
         sessions = self.client.table("game_sessions").select(
-            "id,room_name,game,mode,current_game,points,limit_count,endless,paused,question_number,question,answer,clue_text,used_questions"
+            "id,room_name,game,mode,current_game,points,limit_count,endless,paused,question_number,question,answer,clue_text,used_questions,state_json"
         ).order("id").execute().data or []
         if not sessions:
             return []
@@ -121,47 +125,42 @@ class Database:
         by_session = {}
         for p in players:
             by_session.setdefault(int(p["session_id"]), []).append(p)
+        states = []
         for s in sessions:
-            s["players"] = by_session.get(int(s["id"]), [])
-        return sessions
+            state = s.get("state_json")
+            if isinstance(state, dict) and state:
+                state = dict(state)
+            else:
+                state = {
+                    "room": s["room_name"],
+                    "game": s["game"],
+                    "mode": s.get("mode") or s["game"],
+                    "current_game": s.get("current_game") or s["game"],
+                    "points": s["points"],
+                    "limit": s["limit_count"],
+                    "endless": s["endless"],
+                    "paused": s["paused"],
+                    "number": s["question_number"],
+                    "question": s["question"],
+                    "answer": s["answer"],
+                    "clue_text": s["clue_text"],
+                    "used_questions": s.get("used_questions") or [],
+                }
+            state["players"] = by_session.get(int(s["id"]), [])
+            states.append(state)
+        return states
 
     def save_game_state(self, state: dict[str, Any]) -> int:
-        payload = {
-            "room_name": state["room"],
-            "game": state["game"],
-            "mode": state.get("mode") or state["game"],
-            "current_game": state.get("current_game") or state["game"],
-            "points": int(state["points"]),
-            "limit_count": int(state["limit"]),
-            "endless": bool(state.get("endless")),
-            "paused": bool(state["paused"]),
-            "question_number": int(state["number"]),
-            "question": state["question"],
-            "answer": state["answer"],
-            "clue_text": state.get("clue_text", ""),
-            "used_questions": list(state.get("used_questions", [])),
-        }
-        existing = self.client.table("game_sessions").select("id").eq("room_name", state["room"]).limit(1).execute().data or []
-        if existing:
-            sid = int(existing[0]["id"])
-            self.client.table("game_sessions").update(payload).eq("id", sid).execute()
-        else:
-            sid = int(self.client.table("game_sessions").insert(payload).execute().data[0]["id"])
-        self.client.table("game_players").delete().eq("session_id", sid).execute()
-        rows = []
-        for p in state.get("players", []):
-            rows.append({
-                "session_id": sid,
-                "user_id": p.get("user_id") or None,
-                "username": p["username"],
-                "nickname": p["nickname"],
-                "score": int(p["score"]),
-                "correct": int(p["correct"]),
-                "attempts": int(p["attempts"]),
-            })
-        if rows:
-            self.client.table("game_players").insert(rows).execute()
-        return sid
+        # Persist the complete exported state in one SECURITY DEFINER RPC.
+        # This makes session + players atomic and preserves newer fields
+        # (clues, cycle state, reply history, etc.) across restarts.
+        result = self.client.rpc(
+            "uzzapbot_save_game_state",
+            {"p_state": state},
+        ).execute()
+        if not result.data:
+            raise RuntimeError("Game state save returned no session id")
+        return int(result.data)
 
     def delete_game_state(self, room: str) -> None:
         self.client.table("game_sessions").delete().eq("room_name", room).execute()
