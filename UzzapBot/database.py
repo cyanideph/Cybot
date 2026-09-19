@@ -176,31 +176,62 @@ class Database:
         return rows[0] if rows else {"room_name": room, "summary": "", "topic": "GENERAL", "message_count": 0}
 
     def save_room_summary(self, summary: dict[str, Any]) -> None:
+        room = str(summary["room_name"])
+        incoming_source = summary.get("source_through_message_id")
+        existing = self.load_room_summary(room)
+        existing_source = existing.get("source_through_message_id")
+        if (
+            incoming_source is not None
+            and existing_source is not None
+            and int(incoming_source) <= int(existing_source)
+        ):
+            return
         self.client.table("uzzapbot_room_summaries").upsert({
-            "room_name": str(summary["room_name"]),
+            "room_name": room,
             "summary": str(summary.get("summary") or "")[:4000],
             "topic": str(summary.get("topic") or "GENERAL").upper()[:40],
             "message_count": int(summary.get("message_count") or 0),
-            "source_through_message_id": summary.get("source_through_message_id"),
+            "source_through_message_id": incoming_source,
         }, on_conflict="room_name").execute()
 
     def load_room_memory(self, room: str, limit: int = 5) -> list[dict[str, Any]]:
         rows = self.client.table("uzzapbot_room_memory").select(
             "id,room_name,memory_type,content,metadata,source_message_id,created_at"
-        ).eq("room_name", room).order("created_at", desc=True).limit(max(1, min(int(limit), 20))).execute().data or []
+        ).eq("room_name", room).or_("expires_at.is.null,expires_at.gt.now()").order(
+            "created_at", desc=True
+        ).limit(max(1, min(int(limit), 20))).execute().data or []
         return list(reversed(rows))
 
     def save_room_memory(self, memory: dict[str, Any]) -> None:
         from datetime import datetime, timedelta, timezone
+        room = str(memory["room_name"])
+        memory_type = str(memory.get("memory_type") or "conversation")
+        source_message_id = memory.get("source_message_id")
         expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-        self.client.table("uzzapbot_room_memory").insert({
-            "room_name": str(memory["room_name"]),
-            "memory_type": str(memory.get("memory_type") or "conversation"),
+        payload = {
+            "room_name": room,
+            "memory_type": memory_type,
             "content": str(memory.get("content") or "")[:2000],
-            "source_message_id": memory.get("source_message_id"),
+            "source_message_id": source_message_id,
             "metadata": memory.get("metadata") or {},
             "expires_at": memory.get("expires_at") or expires_at,
-        }).execute()
+        }
+        if source_message_id is not None:
+            existing = self.client.table("uzzapbot_room_memory").select("id").eq(
+                "room_name", room
+            ).eq("memory_type", memory_type).eq(
+                "source_message_id", int(source_message_id)
+            ).limit(1).execute().data or []
+            if existing:
+                self.client.table("uzzapbot_room_memory").update(payload).eq(
+                    "id", int(existing[0]["id"])
+                ).execute()
+                return
+        self.client.table("uzzapbot_room_memory").insert(payload).execute()
+
+    def purge_expired_room_memory(self) -> int:
+        result = self.client.rpc("uzzapbot_purge_expired_memory", {}).execute()
+        return int(result.data or 0)
 
     def save_room_memory_embedding(self, memory_id: int, values: list[float]) -> None:
         vector = "[" + ",".join(f"{float(v):.9g}" for v in values) + "]"
