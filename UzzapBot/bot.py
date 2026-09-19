@@ -9,15 +9,15 @@ logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(m
 log=logging.getLogger("uzzapbot")
 
 HELP="""[c04]╔══════════════════════════════╗
-[c14]        UZZAPBOT GAME CORE 4
+[c14]          UZZAPBOT
 [c04]╚══════════════════════════════╝
-[c09]One official command per action. Slash commands only.
+[c09]One official command per action. No aliases.
 
 [c02]━━ PLAYER COMMANDS ━━
 [c16]/HELP[c09] — Show this help
 [c16]/CLUE[c09] — Get a clue
 [c16]/REPOST[c09] — Repost the current question
-[c16]/STATUS[c09] — Show game status
+[c16]/STATUS[c09] — Show current game status
 [c16]/SCORE[c09] — Show your score
 [c16]/LEADERBOARD[c09] — Show leaderboard
 [c16]/VERSION[c09] — Show bot version
@@ -40,11 +40,11 @@ HELP="""[c04]╔═════════════════════�
 [c06]/TAGALOG WORDHUNT[c09] — Tagalog Wordhunt
 
 [c03]━━ ADMIN COMMANDS ━━
-[c16]/STOP[c09] — Stop the current game
-[c16]/PAUSE[c09] — Pause the current game
-[c16]/RESUME[c09] — Resume the current game
+[c16]/STOP[c09] — Stop current game
+[c16]/PAUSE[c09] — Pause current game
+[c16]/RESUME[c09] — Resume current game
 [c16]/NEXT[c09] — Next question
-[c16]/REVEAL[c09] — Reveal the answer
+[c16]/REVEAL[c09] — Reveal answer
 [c16]/ACTIVATE[c09] — Activate room
 [c16]/LOCK[c09] — Lock game input
 [c16]/UNLOCK[c09] — Unlock game input
@@ -54,9 +54,9 @@ HELP="""[c04]╔═════════════════════�
 [c16]/CHALLENGE <room>[c09] — Set challenge room
 [c16]/CHALLENGE OFF[c09] — Disable challenge/mirror
 
-[c09]Game commands use the default points and score limit.
 [c09]Players are registered automatically when they answer.
-[c14]GAME CORE 4.5[c09] — UzzapBot compatibility edition."""
+[c09]Invalid or old commands are not accepted.
+[c14]UzzapBot Game Core 4.5[c09]."""
 
 def is_admin(msg:dict)->bool:
     return str(msg.get("sender_id") or "") in ADMIN_IDS or str(msg.get("sender") or "").casefold() in ADMIN_USERNAMES
