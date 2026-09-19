@@ -183,6 +183,24 @@ class GameEngine:
         if not rows: return f"[c03]{s.mode.upper()} COMPLETE\n[c01]No scores yet."
         return f"[c03]{s.mode.upper()} COMPLETE\n[c01]Final leaderboard\n"+"\n".join(f"{i}. {p.nickname} — {p.score}" for i,p in enumerate(rows[:10],1))
 
+    CORRECT_REPLIES = (
+        "🎉 Correct, {name}! +{points} points.",
+        "🔥 Nice one, {name}! +{points} points.",
+        "👏 Good answer, {name}! +{points} points.",
+        "⚡ Fast one, {name}! +{points} points.",
+        "💚 You got it, {name}! +{points} points.",
+        "🏆 Excellent, {name}! +{points} points.",
+    )
+    CLUE_PREFIXES = (
+        "💡 Clue",
+        "🧩 Here's a clue",
+        "🔎 Try this clue",
+        "✨ Clue",
+    )
+
+    def _personality(self, options, **values):
+        return random.choice(options).format(**values)
+
     def answer(self,room,uid,username,nickname,text):
         s=self.sessions.get(room)
         if not s or s.paused: return False,""
@@ -191,7 +209,7 @@ class GameEngine:
         p.nickname=nickname or p.nickname; p.username=username or p.username; p.attempts+=1
         if self._normalize(text)==self._normalize(s.answer):
             p.correct+=1; p.score+=s.points
-            response=f"[c03]Correct, {p.nickname}! +{s.points} points."
+            response=f"[c03]{self._personality(self.CORRECT_REPLIES,name=p.nickname,points=s.points)}"
             response+="\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
             return True,response
         return False,""
@@ -205,7 +223,7 @@ class GameEngine:
             if ch.isspace() or not ch.isalnum(): out.append(ch)
             elif seen<reveal: out.append(ch); seen+=1
             else: out.append("_")
-        s.clue_text="".join(out); return f"[c12]Clue: {s.clue_text}"
+        s.clue_text="".join(out); return f"[c12]{random.choice(self.CLUE_PREFIXES)}: {s.clue_text}"
 
     def repost(self,room):
         s=self.sessions.get(room)
