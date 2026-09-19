@@ -101,6 +101,35 @@ def parse_command(text:str):
     }
     command=aliases.get(command,command)
 
+    # Game Core 4.5 mode commands use slash syntax, e.g. /TT ON or /MATH ON.
+    # They route through the same validated GameEngine.start() path as /game start.
+    mode_commands={
+        "tt":"twist", "math":"math", "trivia":"trivia", "anime":"anime",
+        "logic":"logic", "algebra":"algebra", "ph":"filipino",
+        "random":"random1", "random_quiz1":"random1", "random_quiz2":"random2",
+        "random_quiz3":"random3", "random_gta":"randomgta",
+        "gta_opm":"gtaopm", "gta_foreign":"gtaforeign",
+        "english_wordhunt":"wordhunt", "tagalog_wordhunt":"summonnight2",
+    }
+    if command in mode_commands:
+        # Optional ON is accepted for legacy Game Core compatibility.
+        game=mode_commands[command]
+        rest=args[1:] if args and args[0].casefold()=="on" else args
+        return ["start",game,*rest]
+    if command in {"random","gta","english","tagalog"}:
+        if command=="random" and args:
+            q=args[0].casefold()
+            if q in {"quiz1","quiz2","quiz3","gta"}:
+                return ["start",{"quiz1":"random1","quiz2":"random2","quiz3":"random3","gta":"randomgta"}[q],*args[1:]]
+        if command=="gta" and args:
+            q=args[0].casefold()
+            if q in {"opm","foreign"}:
+                return ["start",{"opm":"gtaopm","foreign":"gtaforeign"}[q],*args[1:]]
+        if command=="english" and args and args[0].casefold()=="wordhunt":
+            return ["start","wordhunt",*args[1:]]
+        if command=="tagalog" and args and args[0].casefold()=="wordhunt":
+            return ["start","summonnight2",*args[1:]]
+
     if command=="game":
         if not args:
             return ["help"]
