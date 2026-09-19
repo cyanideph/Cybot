@@ -47,7 +47,7 @@ HELP="""[c04]╔═════════════════════�
 [c16]/mirror off[c09] — Disable mirror
 
 [c14]TIP: [c09]Use /help anytime to see commands.
-[c09]Legacy no-slash commands and !game commands are no longer accepted."""
+[c14]GAME CORE 4.5[c09] — UzzapBot compatibility edition."""
 
 def is_admin(msg:dict)->bool:
     return str(msg.get("sender_id") or "") in ADMIN_IDS or str(msg.get("sender") or "").casefold() in ADMIN_USERNAMES
