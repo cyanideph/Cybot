@@ -45,6 +45,11 @@ GAME OFF
 CLUE / SIRIT / HINT
 REPOST / REP0ST
 STATUS / SCORE / LEADERBOARD
+ACTIVATE / LOCK / UNLOCK
+/wcbot on / /wcbot off
+/wmsg <message>
+/challenge <room> / /challenge off
+MIRROR OFF
 
 These are compatibility aliases; the modern GameEngine and persistence remain authoritative."""
 
@@ -199,8 +204,7 @@ def main()->None:
                         elif sub=="challenge_off":
                             room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Challenge room disabled.")
                         elif sub=="mirror_off":
-                            room_settings(room)["challenge_room"]=""; db.send(room,"[c08]Mirror/challenge posting disabled.")
-                        elif sub=="legacy_noop": db.send(room,"[c08]Legacy command recognized. This feature is handled by the modern room architecture.")
+                            room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Mirror/challenge posting disabled.")
                         elif sub=="legacy_noop": db.send(room,"[c08]Legacy command recognized. This feature is handled by the modern room architecture.")
                         elif sub=="start":
                             game=args[1] if len(args)>1 else "math"
