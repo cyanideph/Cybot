@@ -78,6 +78,17 @@ class FakeRpc:
 
     def execute(self):
         self.client.rpc_calls.append((self.name, self.args))
+        if self.name == "uzzapbot_get_cursor":
+            return FakeResponse(self.client.cursor)
+        if self.name == "uzzapbot_advance_cursor":
+            previous_id = int(self.args["p_previous_id"])
+            message_id = int(self.args["p_message_id"])
+            if previous_id != self.client.cursor:
+                return FakeResponse(False)
+            if message_id <= previous_id:
+                return FakeResponse(False)
+            self.client.cursor = message_id
+            return FakeResponse(True)
         if self.name == "uzzapbot_claim_message":
             message_id = int(self.args["p_message_id"])
             if message_id in self.client.claim_exceptions:
@@ -93,6 +104,7 @@ class FakeRpc:
 class FakeClient:
     def __init__(self):
         self.latest_id = 0
+        self.cursor = 0
         self.messages = []
         self.claimable_ids = set()
         self.claim_exceptions = set()
@@ -117,7 +129,7 @@ class FakeClient:
 def make_db(client):
     db = Database.__new__(Database)
     db.client = client
-    db.last_id = client.latest_id
+    db.last_id = client.cursor
     return db
 
 
@@ -145,7 +157,59 @@ def test_poll_messages_drains_more_than_one_page_without_skipping(monkeypatch):
     assert len(rows) == 105
     assert [row["id"] for row in rows] == list(range(1, 106))
     assert db.last_id == 105
-    assert [call[1]["p_message_id"] for call in client.rpc_calls] == list(range(1, 106))
+    assert client.cursor == 105
+    assert [call[1]["p_message_id"] for call in client.rpc_calls if call[0] == "uzzapbot_claim_message"] == list(range(1, 106))
+
+
+def test_poll_messages_stops_at_claim_failure_and_preserves_cursor(monkeypatch):
+    monkeypatch.setattr("database.BOT_SENDER_ID", "bot-uuid")
+    client = FakeClient()
+    client.messages = [message(1), message(2), message(3)]
+    client.claimable_ids = {1, 2, 3}
+    client.claim_exceptions = {2}
+    db = make_db(client)
+
+    with pytest.raises(RuntimeError, match="temporary claim failure"):
+        db.poll_messages()
+
+    assert db.last_id == 1
+    assert client.cursor == 1
+
+    client.claim_exceptions.clear()
+    rows = db.poll_messages()
+
+    assert [row["id"] for row in rows] == [2, 3]
+    assert db.last_id == 3
+    assert client.cursor == 3
+
+
+def test_poll_messages_does_not_skip_when_cursor_advance_fails(monkeypatch):
+    monkeypatch.setattr("database.BOT_SENDER_ID", "bot-uuid")
+    client = FakeClient()
+    client.messages = [message(1), message(2)]
+    client.claimable_ids = {1, 2}
+    db = make_db(client)
+
+    original_rpc = client.rpc
+    failed_once = {"value": True}
+
+    def rpc(name, args):
+        if name == "uzzapbot_advance_cursor" and failed_once["value"]:
+            failed_once["value"] = False
+            raise RuntimeError("cursor unavailable")
+        return original_rpc(name, args)
+
+    client.rpc = rpc
+
+    with pytest.raises(RuntimeError, match="cursor unavailable"):
+        db.poll_messages()
+
+    assert db.last_id == 0
+    assert client.cursor == 0
+
+    rows = db.poll_messages()
+    assert [row["id"] for row in rows] == [1, 2]
+    assert db.last_id == 2
 
 
 def test_poll_messages_ignores_bot_messages(monkeypatch):
