@@ -15,7 +15,6 @@ SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or os.getenv("SUPABASE_KEY", "").strip(
 BOT_NAME = os.getenv("BOT_NAME", "uzzapbot").strip()
 BOT_SENDER_ID = os.getenv("BOT_SENDER_ID", "").strip()
 ADMIN_IDS = {x.strip() for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
-ADMIN_USERNAMES = {x.strip().casefold() for x in os.getenv("ADMIN_USERNAMES", "").split(",") if x.strip()}
 POLL_SECONDS = float(os.getenv("POLL_SECONDS", "1.0"))
 DEFAULT_POINTS = int(os.getenv("DEFAULT_POINTS", "10"))
 DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", "100"))
