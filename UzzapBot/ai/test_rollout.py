@@ -48,3 +48,11 @@ def test_live_requires_explicit_live_enable_and_no_dry_run():
 
 def test_rollback_is_disabled_only():
     assert rollback_plan()["target_stage"] == "disabled"
+
+
+def test_bot_source_imports_and_calls_rollout_gate():
+    from pathlib import Path
+    source = Path(__file__).resolve().parents[1].joinpath("bot.py").read_text()
+    assert "from ai.rollout import evaluate_rollout" in source
+    assert "rollout = evaluate_rollout({" in source
+    assert 'if AI_LIVE_ENABLED and not AI_DRY_RUN and not rollout["ready"]:' in source
