@@ -7,9 +7,6 @@ on:
       - "UzzapBot/**"
       - ".github/workflows/uzzapbot-tests.yml"
   pull_request:
-    paths:
-      - "UzzapBot/**"
-      - ".github/workflows/uzzapbot-tests.yml"
 
 jobs:
   tests:
