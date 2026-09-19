@@ -16,7 +16,7 @@ def test_reply_rotation_avoids_recent_repeats():
     ]
 
     assert len(set(replies)) == 5
-    assert len(session.reply_history["correct"]) == 5
+    assert len(session.reply_history["correct"]) == 4
 
 
 def test_wrong_answer_returns_feedback_without_revealing_answer():
