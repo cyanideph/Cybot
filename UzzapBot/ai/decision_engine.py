@@ -4,13 +4,13 @@ import re
 from typing import Any
 from .topic_matcher import match_topic
 
-_COMMAND_RE = re.compile(r"(^|[\\s])/[A-Za-z][A-Za-z0-9_]*(?:\\s|$)")
+_COMMAND_RE = re.compile(r"(^|\s)/[A-Za-z][A-Za-z0-9_]*(?:\s|$)")
 _UNSAFE_CLAIM_RE = re.compile(
-    r"\\b(?:i am human|i'm human|i am a person|i'm a person|as a human|as a person)\\b",
+    r"\b(?:i am human|i'm human|i am a person|i'm a person|as a human|as a person)\b",
     re.IGNORECASE,
 )
 _SECRET_RE = re.compile(
-    r"\\b(?:password|api[ _-]?key|secret key|access token|refresh token|private key)\\b",
+    r"\b(?:password|api[ _-]?key|secret key|access token|refresh token|private key)\b",
     re.IGNORECASE,
 )
 
@@ -38,7 +38,7 @@ class DecisionEngine:
 
         if len(response) > 500:
             return {"allowed": False, "reason": "response_too_long", "game": None}
-        if not response:
+        if not response and action == "chat":
             return {"allowed": False, "reason": "empty_response", "game": None}
         if response.startswith("/"):
             return {"allowed": False, "reason": "command_like_response", "game": None}
