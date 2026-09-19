@@ -203,8 +203,9 @@ def main()->None:
                         },
                     )
                     db.save_room_activity(activity.snapshot(room))
-                    # Phase 1 only: deterministic activity tracking.
-                    # No model/API call is made here.
+                except Exception:
+                    # Activity tracking must never break the existing bot.
+                    log.exception('ROOM ACTIVITY ERROR room="%s"', room)
                 try:
                     if not text.startswith("/"):
                         session=games.get(room)
