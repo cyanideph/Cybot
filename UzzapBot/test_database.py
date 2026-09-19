@@ -276,6 +276,7 @@ def test_room_settings_defaults_are_safe():
         "wcbot": False,
         "welcome_message": "welcome to {room} {nickname}",
         "challenge_room": "",
+        "ai_enabled": False,
     }
 
 
@@ -301,6 +302,7 @@ def test_room_settings_round_trip_payload_is_normalized():
         "wcbot": True,
         "welcome_message": "welcome to {room} {nickname}",
         "challenge_room": "",
+        "ai_enabled": False,
     }
     assert client.upsert_conflict == "room_name"
 
