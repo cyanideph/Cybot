@@ -196,11 +196,24 @@ class Database:
 
     def load_room_memory(self, room: str, limit: int = 5) -> list[dict[str, Any]]:
         rows = self.client.table("uzzapbot_room_memory").select(
-            "id,room_name,memory_type,content,metadata,source_message_id,created_at"
-        ).eq("room_name", room).or_("expires_at.is.null,expires_at.gt.now()").order(
+            "id,room_name,memory_type,content,metadata,source_message_id,created_at,expires_at"
+        ).eq("room_name", room).order(
             "created_at", desc=True
-        ).limit(max(1, min(int(limit), 20))).execute().data or []
-        return list(reversed(rows))
+        ).limit(max(1, min(int(limit) * 2, 40))).execute().data or []
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        active = []
+        for row in rows:
+            expires = row.get("expires_at")
+            if expires:
+                try:
+                    expiry = datetime.fromisoformat(str(expires).replace("Z", "+00:00"))
+                    if expiry <= now:
+                        continue
+                except ValueError:
+                    continue
+            active.append(row)
+        return list(reversed(active[-max(1, min(int(limit), 20)):]))
 
     def save_room_memory(self, memory: dict[str, Any]) -> None:
         from datetime import datetime, timedelta, timezone
