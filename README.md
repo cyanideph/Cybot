@@ -15,6 +15,9 @@ It connects to Supabase, watches Uzzap room messages, handles game commands and 
 - Admin-only room controls
 - Welcome-bot support
 - Challenge/mirror room support
+- Optional room-level Gemini AI
+- AI activity/cooldown/budget gates
+- AI room memory and semantic retrieval
 - Randomized bot replies
 - Legacy Uzzap emoticon codes
 - Persistent game state through Supabase
@@ -95,8 +98,86 @@ From the UzzapBot directory:
 
 The bot restores persisted game sessions when it starts and then polls for new Uzzap room activity.
 
+## Command rules
+
+- Commands are case-insensitive.
+- There is one official command form per action; no aliases are accepted.
+- Commands with invalid arguments are rejected.
+- Admin commands require a sender ID present in ADMIN_IDS.
+- /JOIN is required before a player can submit normal messages as game answers.
+- Users who have not joined can chat normally without affecting the active game.
+- /LEAVE removes the current player from the active game.
+
 ## Player commands
-    /HELP
+
+| Command | Arguments | What it does |
+|---|---|---|
+| /HELP | none | Show the complete command help |
+| /JOIN | none | Join the active game before answering |
+| /LEAVE | none | Leave the current game |
+| /PLAYERS | none | Show players who joined the game |
+| /CLUE | none | Get a progressive clue, up to 3 per question |
+| /REPOST | none | Repost the current question |
+| /STATUS | none | Show current game status |
+| /SCORE | none | Show your score |
+| /LEADERBOARD | none | Show the leaderboard |
+| /VERSION | none | Show bot version/status |
+
+## Player game commands
+
+| Command | Arguments | What it does |
+|---|---|---|
+| /TT ON | ON | Start Text Twist |
+| /MATH ON | ON | Start Math |
+| /TRIVIA ON | ON | Start Trivia |
+| /ANIME ON | ON | Start Anime trivia |
+| /LOGIC ON | ON | Start Logic |
+| /ALGEBRA ON | ON | Start Algebra |
+| /PH ON | ON | Start the Philippine game |
+| /RANDOM QUIZ1 | none | Start Random Quiz 1 |
+| /RANDOM QUIZ2 | none | Start Random Quiz 2 |
+| /RANDOM QUIZ3 | none | Start Random Quiz 3 |
+| /RANDOM GTA | none | Start Random GTA |
+| /GTA OPM | none | Start OPM Guess The Artist |
+| /GTA FOREIGN | none | Start Foreign Guess The Artist |
+| /ENGLISH WORDHUNT | none | Start English WordHunt |
+| /TAGALOG WORDHUNT | none | Start Tagalog WordHunt |
+
+Starting a new game resets the active player list; previous players must use /JOIN again.
+
+## Admin commands
+
+These commands require administrator authorization through ADMIN_IDS.
+
+| Command | Arguments | What it does |
+|---|---|---|
+| /STOP | none | Stop the current game and delete its persisted game state |
+| /PAUSE | none | Pause the current game |
+| /RESUME | none | Resume the current game and repost the question |
+| /NEXT | none | Advance to the next question |
+| /REVEAL | none | Reveal the current answer, then advance |
+| /ACTIVATE | none | Activate the room and clear the room lock |
+| /LOCK | none | Lock game input and pause the active game |
+| /UNLOCK | none | Unlock game input and resume the active game |
+| /WCBOT ON | ON | Enable the welcome bot |
+| /WCBOT OFF | OFF | Disable the welcome bot |
+| /WMSG <message> | message text | Set the room welcome message |
+| /CHALLENGE <room> | room name | Set the challenge/mirror destination room |
+| /CHALLENGE OFF | OFF | Disable challenge/mirror mode |
+| /AI ON | ON | Enable AI for the current room |
+| /AI OFF | OFF | Disable AI for the current room |
+
+## AI behavior
+
+Room AI is optional and controlled by global deployment settings plus the room-level /AI ON|OFF setting.
+
+Important: /AI ON does not make Gemini answer every message immediately. The current AI pipeline analyzes eligible quiet rooms.
+
+The default activity engine uses a 15-minute idle threshold and a 60-minute inactive threshold when those defaults are configured by config.py. A human message resets the room activity timer.
+
+If AI does not respond, inspect runtime logs for AI ROOM GATE ERROR, AI PASS ERROR, decision_error, provider/model errors, or response_sent.
+
+
     /JOIN
     /LEAVE
     /PLAYERS
