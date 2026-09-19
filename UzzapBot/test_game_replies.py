@@ -23,11 +23,14 @@ def test_wrong_answer_returns_feedback_without_revealing_answer():
     engine = GameEngine()
     session = Session("test-room", "math", question="2 + 2 = ?", answer="4")
     engine.sessions[session.room] = session
+    engine.join("test-room", "u1", "cy", "cy")
 
     correct, response = engine.answer("test-room", "u1", "cy", "cy", "3")
 
     assert correct is False
     assert response
-    assert "4" not in response
+    # Ignore [cXX] color codes when checking the answer is not leaked
+    import re
+    assert "4" not in re.sub(r"\[c\d+\]", "", response)
     assert session.players["u1"].score == 0
     assert session.players["u1"].attempts == 1

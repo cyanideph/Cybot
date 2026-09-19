@@ -1,11 +1,13 @@
 """Modern Pydroid-safe reconstruction of the legacy UzZAP Game Core 4 rules."""
 from __future__ import annotations
-import random, re, unicodedata
+import logging, random, re, unicodedata
 from collections import Counter
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from pathlib import Path
 from config import DATA_DIR, DEFAULT_POINTS, DEFAULT_LIMIT
+
+log = logging.getLogger("uzzapbot.game")
 
 @dataclass
 class Player:
@@ -454,7 +456,7 @@ class GameEngine:
         # Support the current field and possible legacy naming.
         room = state.get("room") or state.get("room_id")
         if not room:
-            print("Skipping persisted game state without a room identifier.")
+            log.warning("Skipping persisted game state without a room identifier.")
             return None
 
         mode = str(state.get("mode") or state.get("game") or "math")
@@ -488,5 +490,5 @@ class GameEngine:
                 if self.restore_state(state) is not None:
                     restored += 1
             except (TypeError, ValueError, KeyError) as exc:
-                print(f"Skipping invalid persisted game state: {exc}")
+                log.warning("Skipping invalid persisted game state: %s", exc)
         return restored

@@ -34,6 +34,7 @@ def test_random_modes():
 def test_limit_is_score_target():
     e=GameEngine()
     s=e.start("score-room","add",10,100)
+    e.join("score-room","u","user","user")
     s.answer="2"
     ok,_=e.answer("score-room","u","user","user","2")
     assert ok and not s.paused and s.number==2
@@ -41,6 +42,7 @@ def test_limit_is_score_target():
 def test_endless_does_not_finish_at_limit():
     e=GameEngine()
     s=e.start("endless-room","add",100,100,endless=True)
+    e.join("endless-room","u","user","user")
     s.answer="2"
     ok,_=e.answer("endless-room","u","user","user","2")
     assert ok and not s.paused

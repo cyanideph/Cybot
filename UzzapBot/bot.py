@@ -72,9 +72,15 @@ def persist(db:Database,games:GameEngine,room:str)->None:
     if state: db.save_game_state(state)
 
 ROOM_SETTINGS = {}
+ROOM_SETTINGS_LOADED = {}
+SETTINGS_TTL_SECONDS = 60.0
+
 def room_settings(room: str, db: Database | None = None) -> dict:
-    if room not in ROOM_SETTINGS:
+    now = time.time()
+    stale = now - ROOM_SETTINGS_LOADED.get(room, 0.0) > SETTINGS_TTL_SECONDS
+    if room not in ROOM_SETTINGS or stale:
         ROOM_SETTINGS[room] = db.get_room_settings(room) if db else {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":""}
+        ROOM_SETTINGS_LOADED[room] = now
     return ROOM_SETTINGS[room]
 
 def save_room_settings(db: Database, room: str) -> None:
@@ -90,6 +96,8 @@ def parse_command(text:str):
         return None
 
     command=parts[0][1:].casefold()
+    if not command:
+        return None
     args=parts[1:]
 
     game_commands={
@@ -125,8 +133,10 @@ def parse_command(text:str):
         return ["wmsg",message]
 
     if command=="challenge":
-        if len(args)==1 and args[0].casefold()=="off":
-            return ["challenge_off"]
+        if args and args[0].casefold()=="off":
+            if len(args)==1:
+                return ["challenge_off"]
+            return ["invalid_command","challenge"]
         target=" ".join(args).strip()
         if not target:
             return ["invalid_command","challenge"]
@@ -233,12 +243,11 @@ def main()->None:
                         else: cfg["challenge_room"]=target; save_room_settings(db,room); db.send(room,f"[c03]Challenge room set to: {target}")
                     elif sub=="challenge_off":
                         room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Challenge room disabled.")
-                    elif sub=="mirror_off":
-                        room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Mirror/challenge posting disabled.")
                     elif sub=="start":
                         game=args[1]
                         games.start(room,game,DEFAULT_POINTS,DEFAULT_LIMIT,False)
                         persist(db,games,room); db.send(room,games.repost(room))
+                        db.send(room,"[c09]New game started\u2014previous players must /JOIN again to play.")
                     elif sub=="stop":
                         if games.get(room):
                             games.stop(room); db.delete_game_state(room); db.send(room,"[c08]Game stopped.")

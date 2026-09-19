@@ -61,3 +61,13 @@ def test_wcbot_and_challenge_are_single_command_families():
 
 def test_non_slash_is_not_a_command():
     assert parse_command("TT ON") is None
+
+
+def test_bare_slash_is_ignored():
+    assert parse_command("/") is None
+    assert parse_command("/   ") is None
+
+
+def test_challenge_off_rejects_extra_words():
+    assert parse_command("/CHALLENGE off now") == ["invalid_command", "challenge"]
+    assert parse_command("/CHALLENGE OFF") == ["challenge_off"]

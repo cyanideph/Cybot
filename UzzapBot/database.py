@@ -20,23 +20,29 @@ class Database:
         return int(rows[0]["id"]) if rows else 0
 
     def poll_messages(self) -> list[dict[str, Any]]:
-        r = (
-            self.client.table("room_messages")
-            .select("id,room_name,sender,body,is_system,created_at,sender_id")
-            .gt("id", self.last_id)
-            .order("id")
-            .limit(100)
-            .execute()
-        )
-        rows = r.data or []
-        if rows:
+        # Drain in pages so a busy interval (>100 new messages) is never
+        # skipped: last_id only advances after each page is fully read.
+        result: list[dict[str, Any]] = []
+        while True:
+            r = (
+                self.client.table("room_messages")
+                .select("id,room_name,sender,body,is_system,created_at,sender_id")
+                .gt("id", self.last_id)
+                .order("id")
+                .limit(100)
+                .execute()
+            )
+            rows = r.data or []
+            if not rows:
+                break
             self.last_id = max(int(x["id"]) for x in rows)
-        result = []
-        for x in rows:
-            sender = str(x.get("sender") or "")
-            if str(x.get("sender_id") or "") == BOT_SENDER_ID or sender.casefold() == BOT_NAME.casefold():
-                continue
-            result.append(x)
+            for x in rows:
+                sender = str(x.get("sender") or "")
+                if str(x.get("sender_id") or "") == BOT_SENDER_ID or sender.casefold() == BOT_NAME.casefold():
+                    continue
+                result.append(x)
+            if len(rows) < 100:
+                break
         return result
 
     def send(self, room_name: str, body: str) -> None:
@@ -69,15 +75,17 @@ class Database:
             "wcbot": bool(settings.get("wcbot")),
             "welcome_message": str(settings.get("welcome_message") or "welcome to {room} {nickname}"),
             "challenge_room": str(settings.get("challenge_room") or ""),
-            "updated_at": "now()",
         }
-        payload.pop("updated_at")
         self.client.table("uzzapbot_room_settings").upsert(payload, on_conflict="room_name").execute()
 
     def poll_new_participants(self, seen: set[str]) -> list[dict[str, Any]]:
+        # Only consider recently active participants; avoids a full table
+        # scan as membership grows.
+        from datetime import datetime, timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
         rows = self.client.table("room_participants").select(
             "room_name,username,last_ping"
-        ).execute().data or []
+        ).gt("last_ping", cutoff).execute().data or []
         new = []
         for row in rows:
             room = str(row.get("room_name") or "").strip()
