@@ -6,7 +6,7 @@ def test_rejects_low_confidence():
 
 def test_accepts_matching_game():
     r = DecisionEngine(.75).validate({"topic":"ANIME","confidence":.9,"should_intervene":True,"action":"suggest_game","game":"anime"})
-    assert r == {"allowed":True,"reason":"validated_game_suggestion","game":"anime"}
+    assert r == {"allowed":True,"reason":"validated_game_suggestion","game":"anime","response":""}
 
 def test_rejects_ai_game_redirect():
     r = DecisionEngine(.75).validate({"topic":"OPM","confidence":.95,"should_intervene":True,"action":"suggest_game","game":"anime"})
