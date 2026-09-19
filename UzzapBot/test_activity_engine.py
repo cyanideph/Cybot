@@ -105,7 +105,7 @@ def test_ai_eligibility_does_not_use_human_message_budget():
         max_messages_per_day=20,
     )
     for offset in range(3):
-        activity.record_human_message(now - timedelta(seconds=30 + offset))
+        activity.record_human_message(now - timedelta(seconds=90 + offset))
     decision = activity.ai_eligibility(now)
     assert decision["state"] == "QUIET"
     assert decision["eligible"] is True
