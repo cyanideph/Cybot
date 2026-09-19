@@ -17,15 +17,18 @@ def canary_selected(stable_key: str, percent: int | str) -> bool:
     """Return a deterministic canary assignment for a stable room/user key.
 
     A SHA-256 bucket makes the assignment stable across restarts and workers.
-    Invalid percentages fail closed; 0 selects nobody and 100 selects everyone.
+    Invalid or out-of-range percentages fail closed. Zero selects nobody and
+    100 selects everyone.
     """
     try:
         value = int(percent)
     except (TypeError, ValueError):
         return False
-    if value <= 0:
+    if value < 0 or value > 100:
         return False
-    if value >= 100:
+    if value == 0:
+        return False
+    if value == 100:
         return True
     key = str(stable_key or "").strip()
     if not key:
