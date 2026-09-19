@@ -183,7 +183,7 @@ class GameEngine:
 
     def finish(self,s,winner=None):
         s.paused=True
-        if winner: return f"[c10]{winner.nickname} WINS THE GAME!\n[c03]Score: {winner.score}"
+        if winner: return f"[c03]{winner.nickname} WINS THE GAME!\n[c03]Score: {winner.score}"
         rows=sorted(s.players.values(),key=lambda p:(p.score,p.correct),reverse=True)
         if not rows: return f"[c03]{s.mode.upper()} COMPLETE\n[c01]No scores yet."
         return f"[c03]{s.mode.upper()} COMPLETE\n[c01]Final leaderboard\n"+"\n".join(f"{i}. {p.nickname} — {p.score}" for i,p in enumerate(rows[:10],1))
@@ -196,7 +196,7 @@ class GameEngine:
         p.nickname=nickname or p.nickname; p.username=username or p.username; p.attempts+=1
         if self._normalize(text)==self._normalize(s.answer):
             p.correct+=1; p.score+=s.points
-            response=f"[c10]Correct, {p.nickname}! +{s.points} points."
+            response=f"[c03]Correct, {p.nickname}! +{s.points} points."
             response+="\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
             return True,response
         return False,""
