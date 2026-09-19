@@ -93,6 +93,30 @@ class Database:
             {"p_room": room_name, "p_body": body, "p_is_system": False},
         ).execute()
 
+    def load_room_activity(self) -> list[dict[str, Any]]:
+        return self.client.table("uzzapbot_room_activity").select(
+            "room_name,enabled,idle_threshold_seconds,inactive_threshold_seconds,cooldown_seconds,"
+            "max_messages_per_hour,max_messages_per_day,last_human_activity_at,last_bot_activity_at,"
+            "activity_state,human_message_count_hour,human_message_count_day"
+        ).execute().data or []
+
+    def save_room_activity(self, state: dict[str, Any]) -> None:
+        payload = {
+            "room_name": str(state["room_name"]),
+            "enabled": bool(state.get("enabled", False)),
+            "idle_threshold_seconds": int(state.get("idle_threshold_seconds", 900)),
+            "inactive_threshold_seconds": int(state.get("inactive_threshold_seconds", 3600)),
+            "cooldown_seconds": int(state.get("cooldown_seconds", 1800)),
+            "max_messages_per_hour": int(state.get("max_messages_per_hour", 3)),
+            "max_messages_per_day": int(state.get("max_messages_per_day", 20)),
+            "last_human_activity_at": state.get("last_human_activity_at"),
+            "last_bot_activity_at": state.get("last_bot_activity_at"),
+            "activity_state": str(state.get("activity_state", "INACTIVE")),
+            "human_message_count_hour": int(state.get("human_message_count_hour", 0)),
+            "human_message_count_day": int(state.get("human_message_count_day", 0)),
+        }
+        self.client.table("uzzapbot_room_activity").upsert(payload, on_conflict="room_name").execute()
+
     def get_room_settings(self, room: str) -> dict[str, Any]:
         defaults = {"activated": False, "locked": False, "wcbot": False,
                     "welcome_message": "welcome to {room} {nickname}", "challenge_room": ""}
