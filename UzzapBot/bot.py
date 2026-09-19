@@ -433,15 +433,6 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
                 record_ai_diagnostic(db, room_name, "response_budget_blocked",
                     "final_response_budget", {"latest_usage": latest_usage},
                     force=True)
-                db.save_ai_event({
-                    "room_name": room_name,
-                    "event_type": "response_sent",
-                    "dry_run": False,
-                    "allowed": True,
-                    "reason": "response_sent",
-                    "response": validated["response"],
-                    "input_chars": len(conversation),
-                })
 
 def main()->None:
     validate()
