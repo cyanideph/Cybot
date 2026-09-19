@@ -178,6 +178,18 @@ class Database:
         }
         self.client.table("uzzapbot_ai_events").insert(payload).execute()
 
+    def save_ai_diagnostic(self, room: str, stage: str, reason: str | None = None, details: dict[str, Any] | None = None) -> None:
+        """Persist non-secret AI gate diagnostics for production troubleshooting."""
+        from datetime import datetime, timezone
+        payload = {
+            "room_name": str(room or ""),
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "stage": str(stage or "unknown"),
+            "reason": str(reason)[:500] if reason else None,
+            "details": details or {},
+        }
+        self.client.table("uzzapbot_ai_diagnostics").upsert(payload, on_conflict="room_name").execute()
+
     def ai_usage(self, room: str | None = None) -> dict[str, int]:
         """Return AI request/output usage from the durable event ledger."""
         result = self.client.rpc(
