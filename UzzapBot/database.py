@@ -53,7 +53,7 @@ class Database:
     def send(self, room_name: str, body: str) -> None:
         # Keep bot output compatible with the legacy Uzzap client: replace
         # ordinary Unicode emoji with an app-picker emoticon token.
-        body = re.sub(r"[\\U0001F300-\\U0001FAFF\\u2600-\\u27BF]", lambda _: self.random_emoticon(), str(body))
+        body = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", lambda _: self.random_emoticon(), str(body))
         log.info('SEND room="%s" body=%r', room_name, body)
         self.client.rpc(
             "room_bot_message",
