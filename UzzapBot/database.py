@@ -11,13 +11,30 @@ log = logging.getLogger("uzzapbot.database")
 class Database:
     def __init__(self) -> None:
         self.client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        self.last_id = self._latest_id()
-        log.info("Polling starts after room_messages id=%s", self.last_id)
+        self.last_id = self._load_cursor()
+        log.info("Polling starts after durable room_messages cursor=%s", self.last_id)
 
-    def _latest_id(self) -> int:
-        r = self.client.table("room_messages").select("id").order("id", desc=True).limit(1).execute()
-        rows = r.data or []
-        return int(rows[0]["id"]) if rows else 0
+    def _load_cursor(self) -> int:
+        """Load the durable bot cursor, initializing it once at the current tail."""
+        r = self.client.rpc("uzzapbot_get_cursor", {}).execute()
+        if r.data is None:
+            raise RuntimeError("UzzapBot cursor RPC returned no value")
+        return int(r.data)
+
+    def _advance_cursor(self, previous_id: int, message_id: int) -> None:
+        """Persist one successful cursor step; never skip over an unprocessed id."""
+        r = self.client.rpc(
+            "uzzapbot_advance_cursor",
+            {
+                "p_previous_id": int(previous_id),
+                "p_message_id": int(message_id),
+            },
+        ).execute()
+        if not bool(r.data):
+            raise RuntimeError(
+                f"UzzapBot cursor advance rejected: expected {previous_id}, message {message_id}"
+            )
+        self.last_id = int(message_id)
 
     def claim_message(self, message_id: int) -> bool:
         """Atomically claim a message so multiple bot workers cannot process it twice."""
@@ -28,10 +45,14 @@ class Database:
         return bool(r.data)
 
     def poll_messages(self) -> list[dict[str, Any]]:
-        # Drain in pages so a busy interval (>100 new messages) is never
-        # skipped: last_id only advances after each page is fully read.
-        # Each returned row is atomically claimed in Supabase, so only one
-        # UzzapBot worker can process a message when duplicate workers exist.
+        """Drain messages without advancing past a failed claim.
+
+        The durable cursor is advanced only after a row is either successfully
+        claimed, already claimed by another worker, or explicitly identified as
+        a bot-authored message. If claim/advance raises, processing stops and
+        the cursor remains immediately before the failed row so the next poll
+        can retry it.
+        """
         result: list[dict[str, Any]] = []
         while True:
             r = (
@@ -45,13 +66,22 @@ class Database:
             rows = r.data or []
             if not rows:
                 break
-            self.last_id = max(int(x["id"]) for x in rows)
+
             for x in rows:
+                message_id = int(x["id"])
                 sender = str(x.get("sender") or "")
-                if str(x.get("sender_id") or "") == BOT_SENDER_ID or sender.casefold() == BOT_NAME.casefold():
-                    continue
-                if self.claim_message(int(x["id"])):
+                is_bot_message = (
+                    str(x.get("sender_id") or "") == BOT_SENDER_ID
+                    or sender.casefold() == BOT_NAME.casefold()
+                )
+
+                if not is_bot_message and self.claim_message(message_id):
                     result.append(x)
+
+                # This is deliberately per-message. If claim_message() or the
+                # cursor RPC raises, last_id remains at the previous message.
+                self._advance_cursor(self.last_id, message_id)
+
             if len(rows) < 100:
                 break
         return result
