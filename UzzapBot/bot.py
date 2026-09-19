@@ -15,6 +15,7 @@ from ai.gemini_decision import GeminiDecisionClient
 from ai.decision_engine import DecisionEngine
 from ai.room_context import RoomContextManager
 from ai.embedding import GeminiEmbedding
+from ai.budget import request_budget_available, response_budget_available
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
@@ -165,7 +166,7 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
         return
 
     global_usage = db.ai_usage()
-    if global_usage["requests_day"] >= AI_MAX_REQUESTS_PER_DAY:
+    if not request_budget_available(global_usage, AI_MAX_REQUESTS_PER_DAY):
         return
 
     client = GeminiDecisionClient(GEMINI_API_KEY, GEMINI_FLASH_MODEL)
@@ -179,9 +180,7 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             continue
 
         usage = db.ai_usage(room_name)
-        if usage["messages_hour"] >= AI_MAX_MESSAGES_PER_HOUR:
-            continue
-        if usage["messages_day"] >= AI_MAX_MESSAGES_PER_DAY:
+        if not response_budget_available(usage, AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY):
             continue
 
         recent = db.recent_room_messages(room_name, 20)
@@ -279,9 +278,8 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             # This keeps the cap authoritative even if another worker wrote an
             # AI response after the initial eligibility check.
             latest_usage = db.ai_usage(room_name)
-            if (
-                latest_usage["messages_hour"] < AI_MAX_MESSAGES_PER_HOUR
-                and latest_usage["messages_day"] < AI_MAX_MESSAGES_PER_DAY
+            if response_budget_available(
+                latest_usage, AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY
             ):
                 db.send(room_name, validated["response"])
                 db.save_ai_event({
