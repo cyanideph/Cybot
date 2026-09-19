@@ -29,15 +29,24 @@ Controls:
 !game score
 !game leaderboard
 
-Legacy aliases:
-random quiz1 -> random1
-random quiz2 -> random2
-random quiz3 -> random3
-random gta -> randomgta
-english wordhunt -> wordhunt
-tagalog wordhunt -> summonnight2
-ph on -> filipino
-game off -> stop"""
+Legacy commands (original Game Core 4 style):
+RANDOM QUIZ1
+RANDOM QUIZ2
+RANDOM QUIZ3
+RANDOM GTA
+MATH ON
+TT ON
+TRIVIA ON
+ENGLISH WORDHUNT
+TAGALOG WORDHUNT
+PH ON
+GAME ON
+GAME OFF
+CLUE / SIRIT / HINT
+REPOST / REP0ST
+STATUS / SCORE / LEADERBOARD
+
+These are compatibility aliases; the modern GameEngine and persistence remain authoritative."""
 
 def is_admin(msg:dict)->bool:
     return str(msg.get("sender_id") or "") in ADMIN_IDS or str(msg.get("sender") or "").casefold() in ADMIN_USERNAMES
