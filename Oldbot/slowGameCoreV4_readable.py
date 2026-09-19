@@ -204,7 +204,7 @@ last_number = []
 emoticons = (';)', '(+)', ':(', ':D', ':e', '(:)', ':o', ':DD', 'o/', ':Oo', ':|', ':B,', ':OOo', ':Zz.', 'O:)', '))(', ':)', '@};-')
 faces = ('[#/1 ', '[#/1 ', '[#/1 ', '[#/2 ', '[#/3 ', '[#/4 ', '[#/4 ', '[#/4 ', '[#/5 ', '[#/6 ', '[#/4 ', '[#/7 ', '[#/8 ', '[#/9 ', '[#/0 ')
 marky9 = random.randint(0, 9999)
-marky8 = random.randint(99999, 99999)
+marky8 = random.randint(10000, 99999)
 xmlpost = (('<iq type="get" id="CSTCR_3' + str(marky9)) + str(marky8) + '_7#ID#" to="conference@demo.kolipri.com/amazilia" amaz-protocol="chat"><msg room="#ROOM#" type="groupchat"><![CDATA[#MESS#]]></msg></iq>')
 xmlmark = (((('<iq type="get" id="CSTCR_4' + str(marky9)) + str(marky8) + '_8#ID#" to="conference@demo.kolipri.com/amazilia" amaz-protocol="chat"><msg room="#ROOM#" type="groupchat"><![CDATA[#MESS#]]></msg></iq><iq type="get" id="CSTCR_5') + str(marky9)) + str(marky8) + '_9#IDx#" to="conference@demo.kolipri.com/amazilia" amaz-protocol="chat"><msg room="#ROOMx#" type="groupchat"><![CDATA[#MESSx#]]></msg></iq>')
 gmnick = 'ame`^{=^_^=}^`athrun'
@@ -364,7 +364,7 @@ def post_message_prompt():
     str2 = str2.replace('#MESS#', last)
     s1.send(str2)
     xmlsr = s1.recv(1024)
-    if xmlsr > 1023 : 
+    if xmlsr : 
         round.add((u'>> Message Posted! = ' + last + '....\n'))
     else : 
         round.add(u'>> Message Post Failed..\n')
@@ -2721,9 +2721,9 @@ def clue_trivia():
 
 
 gtaforeignpath = u'e:\\Python\\Zgta-foreign.txt'
-generate_gta_foreign_question = open(gtaforeignpath, 'r')
-gtaforeignread = generate_gta_foreign_question.readlines()
-generate_gta_foreign_question.close()
+gta_foreign_file = open(gtaforeignpath, 'r')
+gtaforeignread = gta_foreign_file.readlines()
+gta_foreign_file.close()
 gtadecoy1 = []
 def generate_gta_foreign_question():
     global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
@@ -2763,9 +2763,9 @@ def generate_gta_foreign_question():
 
 
 gtaopmpath = u'e:\\Python\\Zgta-opm.txt'
-generate_gta_opm_question = open(gtaopmpath, 'r')
-gtaopmread = generate_gta_opm_question.readlines()
-generate_gta_opm_question.close()
+gta_opm_file = open(gtaopmpath, 'r')
+gtaopmread = gta_opm_file.readlines()
+gta_opm_file.close()
 gtadecoy2 = []
 def generate_gta_opm_question():
     global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
