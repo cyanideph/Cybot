@@ -36,3 +36,20 @@ def test_room_context_is_bounded_and_does_not_execute_commands():
     prompt = context.prompt_text(1000)
     assert len(prompt) <= 1000
     assert "/STOP" not in prompt
+
+
+def test_room_context_tracks_recent_active_users_and_topic_continuity():
+    manager = RoomContextManager()
+    context = manager.build(
+        "Manila",
+        [
+            {"sender": "Alice", "body": "hello"},
+            {"sender": "Bob", "body": "OPM quiz"},
+            {"sender": "Alice", "body": "play it"},
+        ],
+        {"summary": "OPM discussion", "topic": "OPM"},
+    )
+    prompt = context.prompt_text()
+    assert "RECENT ACTIVE USERS:" in prompt
+    assert "Alice, Bob" in prompt
+    assert "TOPIC CONTINUITY:" in prompt
