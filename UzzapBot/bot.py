@@ -15,6 +15,7 @@ from ai.gemini_decision import GeminiDecisionClient
 from ai.decision_engine import DecisionEngine
 from ai.room_context import RoomContextManager
 from ai.embedding import GeminiEmbedding
+from ai.budget import request_budget_available, response_budget_available
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
@@ -163,25 +164,34 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
     """Run optional AI analysis only for eligible quiet rooms."""
     if not AI_ENABLED or not GEMINI_API_KEY:
         return
-    if db.ai_requests_today() >= AI_MAX_REQUESTS_PER_DAY:
+
+    global_usage = db.ai_usage()
+    if not request_budget_available(global_usage, AI_MAX_REQUESTS_PER_DAY):
         return
+
     client = GeminiDecisionClient(GEMINI_API_KEY, GEMINI_FLASH_MODEL)
     embedder = GeminiEmbedding(GEMINI_API_KEY, AI_EMBEDDING_DIMENSIONS)
     gate = DecisionEngine(AI_MIN_CONFIDENCE)
+    context_manager = RoomContextManager(max_recent_messages=20, max_memory_items=5)
+
     for room_name in list(activity.rooms):
         eligibility = activity.eligibility(room_name)
         if not eligibility["eligible"] or eligibility["state"] not in {"QUIET", "INACTIVE"}:
             continue
+
+        usage = db.ai_usage(room_name)
+        if not response_budget_available(usage, AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY):
+            continue
+
         recent = db.recent_room_messages(room_name, 20)
         if not recent:
             activity.get_or_create(room_name).record_ai_analysis()
             db.save_room_activity(activity.snapshot(room_name))
             continue
+
         summary = db.load_room_summary(room_name)
         stored_memory = db.load_room_memory(room_name, 5)
-        base_context = RoomContextManager(max_recent_messages=20, max_memory_items=5).build(
-            room_name, recent, summary, stored_memory
-        )
+        base_context = context_manager.build(room_name, recent, summary, stored_memory)
         query_context = base_context.prompt_text()
 
         query_embedding = embedder.embed_query(query_context)
@@ -194,53 +204,94 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             except Exception:
                 log.exception('AI MEMORY RETRIEVAL ERROR room="%s"', room_name)
 
-        context = RoomContextManager(max_recent_messages=20, max_memory_items=5).build(
+        context = context_manager.build(
             room_name, recent, summary, semantic_memory or stored_memory
         )
         conversation = context.prompt_text()
         result = client.decide(conversation)
         activity.get_or_create(room_name).record_ai_analysis()
         db.save_room_activity(activity.snapshot(room_name))
+
         if not result.ok:
-            db.save_ai_event({"room_name": room_name, "event_type": "decision_error", "dry_run": True,
-                              "reason": result.error, "input_chars": len(conversation)})
+            db.save_ai_event({
+                "room_name": room_name,
+                "event_type": "decision_error",
+                "dry_run": True,
+                "reason": result.error,
+                "input_chars": len(conversation),
+            })
             continue
+
         decision = result.decision or {}
         validated = gate.validate(decision)
         db.save_ai_event({
-            "room_name": room_name, "event_type": "decision", "dry_run": AI_DRY_RUN,
-            "topic": decision.get("topic"), "confidence": decision.get("confidence"),
-            "action": decision.get("action"), "game": validated.get("game"),
-            "allowed": validated.get("allowed"), "reason": validated.get("reason"),
-            "response": validated.get("response"), "input_chars": len(conversation),
+            "room_name": room_name,
+            "event_type": "decision",
+            "dry_run": AI_DRY_RUN,
+            "topic": decision.get("topic"),
+            "confidence": decision.get("confidence"),
+            "action": decision.get("action"),
+            "game": validated.get("game"),
+            "allowed": validated.get("allowed"),
+            "reason": validated.get("reason"),
+            "response": validated.get("response"),
+            "input_chars": len(conversation),
         })
+
         # Keep a short-lived deterministic memory snapshot for future context.
         # It is never treated as an instruction and cannot execute commands.
+        memory_content = conversation[-1800:]
         db.save_room_memory({
             "room_name": room_name,
             "memory_type": "conversation_window",
-            "content": conversation[-1800:],
-            "metadata": {"source": "ai_pass", "topic": decision.get("topic") or "GENERAL"},
+            "content": memory_content,
+            "source_message_id": recent[-1].get("id"),
+            "metadata": {
+                "source": "ai_pass",
+                "topic": decision.get("topic") or "GENERAL",
+                "message_count": len(recent),
+            },
         })
         db.save_room_summary({
             "room_name": room_name,
-            "summary": conversation[-1800:],
+            "summary": memory_content,
             "topic": str(decision.get("topic") or "GENERAL"),
             "message_count": len(recent),
             "source_through_message_id": recent[-1].get("id"),
         })
+
         document_embedding = embedder.embed_document(
-            conversation[-1800:], title=f"{room_name} room context"
+            memory_content, title=f"{room_name} room context"
         )
         if document_embedding.ok and document_embedding.values:
             try:
                 latest = db.load_room_memory(room_name, 1)
                 if latest:
-                    db.save_room_memory_embedding(int(latest[-1]["id"]), document_embedding.values)
+                    db.save_room_memory_embedding(
+                        int(latest[-1]["id"]), document_embedding.values
+                    )
             except Exception:
                 log.exception('AI MEMORY EMBEDDING SAVE ERROR room="%s"', room_name)
+
         if not AI_DRY_RUN and validated.get("allowed") and validated.get("response"):
-            db.send(room_name, validated["response"])
+            # Re-check the durable output budget immediately before sending.
+            # This keeps the cap authoritative even if another worker wrote an
+            # AI response after the initial eligibility check.
+            latest_usage = db.ai_usage(room_name)
+            if response_budget_available(
+                latest_usage, AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY
+            ):
+                db.send(room_name, validated["response"])
+                db.save_ai_event({
+                    "room_name": room_name,
+                    "event_type": "response_sent",
+                    "dry_run": False,
+                    "allowed": True,
+                    "reason": "response_sent",
+                    "response": validated["response"],
+                    "input_chars": len(conversation),
+                })
+
 def main()->None:
     validate()
     db,games=Database(),GameEngine()
