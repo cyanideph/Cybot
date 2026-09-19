@@ -46,6 +46,17 @@ class FakeDB:
         self.embeddings = []
         self.usage = {"requests_hour": 0, "requests_day": 0, "messages_hour": 0, "messages_day": 0}
 
+    def get_room_settings(self, room_name):
+        return {
+            "room_name": room_name,
+            "activated": False,
+            "locked": False,
+            "wcbot": False,
+            "welcome_message": "welcome to {room} {nickname}",
+            "challenge_room": "",
+            "ai_enabled": True,
+        }
+
     def ai_requests_today(self):
         return self.usage["requests_day"]
 
@@ -133,6 +144,26 @@ def test_run_ai_pass_is_callable_and_dry_run_blocks_send(monkeypatch):
     assert db.saved_states
     assert db.events[-1]["allowed"] is True
     assert db.events[-1]["dry_run"] is True
+    assert db.sent == []
+
+
+def test_run_ai_pass_skips_room_when_durable_ai_opt_in_is_off(monkeypatch):
+    monkeypatch.setattr(bot_module, "AI_ENABLED", True)
+    monkeypatch.setattr(bot_module, "GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(bot_module, "AI_DRY_RUN", True)
+    monkeypatch.setattr(bot_module, "AI_MAX_REQUESTS_PER_DAY", 100)
+    monkeypatch.setattr(bot_module, "GEMINI_FLASH_MODEL", "test-model")
+    monkeypatch.setattr(bot_module, "GeminiDecisionClient", FakeClient)
+    monkeypatch.setattr(bot_module, "GeminiEmbedding", FakeEmbedder)
+
+    db = FakeDB()
+    db.get_room_settings = lambda room_name: {"ai_enabled": False}
+    activity = FakeActivity()
+
+    bot_module.run_ai_pass(db, activity)
+
+    assert activity.state.analysis_calls == 0
+    assert db.events == []
     assert db.sent == []
 
 
