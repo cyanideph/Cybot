@@ -152,11 +152,22 @@ class Database:
         }
         self.client.table("uzzapbot_ai_events").insert(payload).execute()
 
+    def ai_usage(self, room: str | None = None) -> dict[str, int]:
+        """Return AI request/output usage from the durable event ledger."""
+        result = self.client.rpc(
+            "uzzapbot_ai_usage",
+            {"p_room_name": room},
+        ).execute()
+        row = (result.data or [{}])[0]
+        return {
+            "requests_hour": int(row.get("requests_hour") or 0),
+            "requests_day": int(row.get("requests_day") or 0),
+            "messages_hour": int(row.get("messages_hour") or 0),
+            "messages_day": int(row.get("messages_day") or 0),
+        }
+
     def ai_requests_today(self) -> int:
-        from datetime import datetime, timezone
-        start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-        rows = self.client.table("uzzapbot_ai_events").select("id").gte("created_at", start).limit(1001).execute().data or []
-        return len(rows)
+        return self.ai_usage().get("requests_day", 0)
 
     def load_room_summary(self, room: str) -> dict[str, Any]:
         rows = self.client.table("uzzapbot_room_summaries").select(
