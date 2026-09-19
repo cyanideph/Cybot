@@ -5,7 +5,7 @@ from config import (
     BOT_NAME, ADMIN_IDS, POLL_SECONDS, DEFAULT_POINTS, DEFAULT_LIMIT, validate,
     AI_ENABLED, AI_IDLE_MINUTES, AI_INACTIVE_MINUTES, AI_COOLDOWN_MINUTES,
     AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY, AI_DRY_RUN,
-    AI_MAX_REQUESTS_PER_DAY, AI_MIN_CONFIDENCE, AI_LIVE_ENABLED, GEMINI_API_KEY, GEMINI_FLASH_MODEL,
+    AI_MAX_REQUESTS_PER_DAY, AI_MIN_CONFIDENCE, AI_LIVE_ENABLED, AI_ROLLOUT_STAGE, AI_CANARY_PERCENT, GEMINI_API_KEY, GEMINI_FLASH_MODEL,
     AI_EMBEDDING_DIMENSIONS,
 )
 from database import Database
@@ -16,6 +16,7 @@ from ai.decision_engine import DecisionEngine
 from ai.room_context import RoomContextManager
 from ai.embedding import GeminiEmbedding
 from ai.budget import request_budget_available, response_budget_available
+from ai.rollout import evaluate_rollout
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
@@ -170,6 +171,23 @@ def parse_command(text:str):
 def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
     """Run optional AI analysis only for eligible quiet rooms."""
     if not AI_ENABLED or not GEMINI_API_KEY:
+        return
+
+    rollout = evaluate_rollout({
+        "rollout_stage": AI_ROLLOUT_STAGE,
+        "canary_percent": AI_CANARY_PERCENT,
+        "ai_enabled": AI_ENABLED,
+        "ai_live_enabled": AI_LIVE_ENABLED,
+        "ai_dry_run": AI_DRY_RUN,
+        "min_confidence": AI_MIN_CONFIDENCE,
+        "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+        "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
+        "max_requests_per_day": AI_MAX_REQUESTS_PER_DAY,
+    })
+    # Phase 11 is an enforced runtime gate. Unsafe or inconsistent live
+    # configuration fails closed before provider calls or message sends.
+    if AI_LIVE_ENABLED and not AI_DRY_RUN and not rollout["ready"]:
+        log.error("AI LIVE ROLLOUT BLOCKED: %s", ",".join(rollout["findings"]))
         return
 
     global_usage = db.ai_usage()
