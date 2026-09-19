@@ -257,7 +257,7 @@ class GameEngine:
 
         # Progressive clues reveal 1/3, 1/2, then 2/3 of the answer.
         s.clue_level += 1
-        compact_len=len(re.sub(r"\\s+","",s.answer))
+        compact_len=len(re.sub(r"\s+","",s.answer))
         reveal_ratio={1:1/3,2:1/2,3:2/3}[s.clue_level]
         reveal=max(1,int(compact_len*reveal_ratio))
         seen=0; out=[]
@@ -292,7 +292,7 @@ class GameEngine:
         s=self.sessions.get(room)
         if not s: return "[c08]No active game."
         p=s.players.get(uid)
-        return "[c12]No score yet." if not p else f"[c03]YOUR SCORE\n[c01]{p.nickname}\n[c07]Points: {p.score} | Correct: {p.correct} | Attempts: {p.attempts}"
+        return "[c12]No score yet." if not p else f"[c03]YOUR SCORE\n[c01]{p.nickname}\n[c07]Points: {p.score} | Correct: {p.correct} | Attempts: {p.attempts} | Clues: {p.clues_used}"
 
     def leaderboard_text(self,room):
         s=self.sessions.get(room)
