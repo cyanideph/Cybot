@@ -90,28 +90,28 @@ class GameEngine:
         threshold=0.92 if max(len(answer_n),len(guess_n))<=8 else 0.88
         return ratio>=threshold
 
-    def _parse_qa(self,rows):
-        out=[]
-        for row in rows:
-            parts=row.split(",",2)
-            if len(parts)==3:
-                ident,question,answer=(x.strip() for x in parts)
-                if question and answer: out.append((ident,question,answer))
-        return out
-
     def _pick_qa(self,rows,used):
         qa=self._parse_qa(rows)
         if not qa: raise ValueError("dataset has no valid question/answer rows")
-        fresh=[x for x in qa if x[0] not in used and self._normalize(x[1]) not in used]
-        item=random.choice(fresh if fresh else qa)
-        used.add(item[0]); used.add(self._normalize(item[1]))
+        fresh=[x for x in qa if f"qa:{x[0]}" not in used and f"q:{self._normalize(x[1])}" not in used]
+        if not fresh:
+            used.clear()
+            fresh=qa
+        item=random.choice(fresh)
+        used.add(f"qa:{item[0]}")
+        used.add(f"q:{self._normalize(item[1])}")
         return item
 
     def _pick_word(self,rows,used,min_len,max_len=None):
         words=[w.strip() for w in rows if len(w.strip())>=min_len and (max_len is None or len(w.strip())<=max_len)]
         if not words: raise ValueError("word dataset has no usable entries")
-        fresh=[w for w in words if self._normalize(w) not in used]
-        word=random.choice(fresh if fresh else words); used.add(self._normalize(word)); return word
+        fresh=[w for w in words if f"word:{self._normalize(w)}" not in used]
+        if not fresh:
+            used.clear()
+            fresh=words
+        word=random.choice(fresh)
+        used.add(f"word:{self._normalize(word)}")
+        return word
 
     def _scramble(self,word):
         chars=list(word); original=self._normalize(word)
@@ -153,13 +153,20 @@ class GameEngine:
     def _build_question(self,s,game):
         s.current_game=game; s.clue_text=""; s.clue_level=0
         if game in {"add","minus","multiply","add1","minus1","multiply1"}:
-            if game in {"add","minus","add1","minus1"}: a,b=random.randint(0,1000),random.randint(0,1000)
-            else: a,b=random.randint(1,100 if game=="multiply" else 10),random.randint(1,10 if game=="multiply" else 100)
-            if game in {"add","add1"}: result,op=a+b,"+"
-            elif game in {"minus","minus1"}: result,op=a-b,"-"
-            else: result,op=a*b,"x"
-            s.question=f"MATH: {a} {op} {b} = ?" if game in {"add","minus","multiply"} else f"MATH: {a} {op} ({b}) = ?"
-            s.answer=str(result); return
+            for _ in range(50):
+                if game in {"add","minus","add1","minus1"}:
+                    a,b=random.randint(0,1000),random.randint(0,1000)
+                else:
+                    a,b=random.randint(1,100 if game=="multiply" else 10),random.randint(1,10 if game=="multiply" else 100)
+                if game in {"add","add1"}: result,op=a+b,"+"
+                elif game in {"minus","minus1"}: result,op=a-b,"-"
+                else: result,op=a*b,"x"
+                question=f"MATH: {a} {op} {b} = ?" if game in {"add","minus","multiply"} else f"MATH: {a} {op} ({b}) = ?"
+                key=f"generated:{self._normalize(question)}"
+                if key not in s.used_questions:
+                    s.used_questions.add(key)
+                    s.question=question; s.answer=str(result); return
+            s.question=question; s.answer=str(result); return
         if game in {"algebra1","algebra2","algebra3"}:
             a,b=random.randint(0,10),random.randint(1,10)
             xcoef,ycoef=random.randint(1,10),random.randint(1,10)
