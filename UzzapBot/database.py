@@ -106,7 +106,7 @@ class Database:
         return self.client.table("uzzapbot_room_activity").select(
             "room_name,enabled,idle_threshold_seconds,inactive_threshold_seconds,cooldown_seconds,"
             "max_messages_per_hour,max_messages_per_day,last_human_activity_at,last_bot_activity_at,"
-            "activity_state,human_message_count_hour,human_message_count_day"
+            "activity_state,human_message_count_hour,human_message_count_day,last_ai_analysis_at"
         ).execute().data or []
 
     def save_room_activity(self, state: dict[str, Any]) -> None:
