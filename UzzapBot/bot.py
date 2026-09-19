@@ -1,7 +1,7 @@
 """Pydroid 3 entry point for UzzapBot."""
 from __future__ import annotations
 import logging,time
-from config import BOT_NAME,ADMIN_IDS,ADMIN_USERNAMES,POLL_SECONDS,DEFAULT_POINTS,DEFAULT_LIMIT,validate
+from config import BOT_NAME,ADMIN_IDS,POLL_SECONDS,DEFAULT_POINTS,DEFAULT_LIMIT,validate
 from database import Database
 from game_engine import GameEngine
 
@@ -65,7 +65,10 @@ HELP="""[c04]╔═════════════════════�
 [c14]UzzapBot Game Core 4.5[c09]."""
 
 def is_admin(msg:dict)->bool:
-    return str(msg.get("sender_id") or "") in ADMIN_IDS or str(msg.get("sender") or "").casefold() in ADMIN_USERNAMES
+    # Authorization is based only on immutable Supabase Auth user IDs.
+    # Usernames are display data and must never grant administrator access.
+    sender_id = str(msg.get("sender_id") or "").strip()
+    return bool(sender_id and sender_id in ADMIN_IDS)
 
 def persist(db:Database,games:GameEngine,room:str)->None:
     state=games.export_state(room)
@@ -277,8 +280,8 @@ def main()->None:
                     elif sub=="leaderboard": db.send(room,games.leaderboard_text(room))
                 except Exception as exc:
                     log.exception('COMMAND ERROR room="%s" sender="%s"',room,username)
-                    try: db.send(room,f"[c08]Game error: {exc}")
-                    except Exception: log.exception('FAILED TO SEND GAME ERROR room="%s"',room)
+                    try: db.send(room,"[c08]Something went wrong while processing that command. Please try again.")
+                    except Exception: log.exception('FAILED TO SEND SAFE GAME ERROR room="%s"',room)
             time.sleep(POLL_SECONDS)
         except KeyboardInterrupt:
             log.info("Bot stopped by user"); return
