@@ -36,13 +36,8 @@ class Session:
         if not self.current_game: self.current_game = self.game
 
 class GameEngine:
-    ALIASES = {
-        "gta":"gtaforeign","gta_foreign":"gtaforeign","gta_opm":"gtaopm",
-        "words":"wordhunt","rebus":"logic","tt":"twist","texttwist":"twist",
-        "english":"wordhunt","english_wordhunt":"wordhunt",
-        "tagalog_wordhunt":"summonnight2","ph":"filipino",
-        "random":"random1","random4":"random3","gen-info-trivia":"trivia",
-    }
+    # Commands are normalized by bot.py. Keep the engine strict so each game has one official command.
+    ALIASES = {}
     GAMES = {
         "add","minus","multiply","add1","minus1","multiply1",
         "algebra1","algebra2","algebra3","trivia","anime","gtaforeign",
