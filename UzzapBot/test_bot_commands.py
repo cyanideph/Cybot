@@ -33,9 +33,9 @@ def test_duplicate_game_routes_are_rejected():
         "/game on trivia",
         "/TRIVIA",
         "/trivia on 1 10",
-        "/random quiz1",
         "/game random quiz1",
-        "/gta opm",
+        "/game start gtaopm",
+        "/TRIVIA ON 1 10",
         "/game start twist",
     ):
         parsed = parse_command(command)
