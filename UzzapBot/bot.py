@@ -67,6 +67,8 @@ HELP="""[c04]╔═════════════════════�
 [c16]/WCBOT OFF[c09] — Disable welcome bot
 [c16]/WMSG <message>[c09] — Set welcome message
 [c16]/CHALLENGE <room>[c09] — Set challenge room
+[c16]/AI ON[c09] — Enable AI for this room
+[c16]/AI OFF[c09] — Disable AI for this room
 [c16]/CHALLENGE OFF[c09] — Disable challenge/mirror
 
 [c09]🎮 To play, use /JOIN first.
@@ -94,7 +96,7 @@ def room_settings(room: str, db: Database | None = None) -> dict:
     now = time.time()
     stale = now - ROOM_SETTINGS_LOADED.get(room, 0.0) > SETTINGS_TTL_SECONDS
     if room not in ROOM_SETTINGS or stale:
-        ROOM_SETTINGS[room] = db.get_room_settings(room) if db else {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":""}
+        ROOM_SETTINGS[room] = db.get_room_settings(room) if db else {"activated":False,"locked":False,"wcbot":False,"welcome_message":"welcome to {room} {nickname}","challenge_room":"", "ai_enabled":False}
         ROOM_SETTINGS_LOADED[room] = now
     return ROOM_SETTINGS[room]
 
