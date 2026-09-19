@@ -149,6 +149,7 @@ def test_poll_messages_drains_more_than_one_page_without_skipping(monkeypatch):
 
 
 def test_poll_messages_ignores_bot_messages(monkeypatch):
+    monkeypatch.setattr("database.BOT_SENDER_ID", "bot-uuid")
     client = FakeClient()
     client.messages = [
         message(1, sender="alice", sender_id="user-1"),
