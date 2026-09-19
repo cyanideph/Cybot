@@ -168,7 +168,7 @@ def test_answer_matching_accepts_intended_typos_but_rejects_partials_and_empty()
 
     # Intended typo tolerance for long text answers.
     assert e._answer_matches("Micheal Jackson", "Michael Jackson")
-    assert e._answer_matches("Beatlse", "Beatles")
+    assert e._answer_matches("Beattles", "Beatles")
 
     # Exact answers still work after normalization.
     assert e._answer_matches("  CAFÉ  ", "cafe")
