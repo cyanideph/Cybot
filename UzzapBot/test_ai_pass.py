@@ -43,6 +43,7 @@ class FakeDB:
         self.sent = []
         self.memories = []
         self.summaries = []
+        self.embeddings = []
 
     def ai_requests_today(self):
         return 0
@@ -68,6 +69,12 @@ class FakeDB:
     def save_room_summary(self, summary):
         self.summaries.append(summary)
 
+    def semantic_room_memory(self, room_name, query_embedding, threshold, limit):
+        return []
+
+    def save_room_memory_embedding(self, memory_id, values):
+        self.embeddings.append((memory_id, values))
+
     def send(self, room_name, body):
         self.sent.append((room_name, body))
 
@@ -91,6 +98,18 @@ class FakeClient:
         })()
 
 
+class FakeEmbedder:
+    def __init__(self, api_key, output_dimensionality):
+        self.api_key = api_key
+        self.output_dimensionality = output_dimensionality
+
+    def embed_query(self, text):
+        return type("Result", (), {"ok": True, "values": [0.1] * self.output_dimensionality})()
+
+    def embed_document(self, text, title="none"):
+        return type("Result", (), {"ok": True, "values": [0.2] * self.output_dimensionality})()
+
+
 def test_run_ai_pass_is_callable_and_dry_run_blocks_send(monkeypatch):
     monkeypatch.setattr(bot_module, "AI_ENABLED", True)
     monkeypatch.setattr(bot_module, "GEMINI_API_KEY", "test-key")
@@ -99,6 +118,7 @@ def test_run_ai_pass_is_callable_and_dry_run_blocks_send(monkeypatch):
     monkeypatch.setattr(bot_module, "AI_MIN_CONFIDENCE", 0.75)
     monkeypatch.setattr(bot_module, "GEMINI_FLASH_MODEL", "test-model")
     monkeypatch.setattr(bot_module, "GeminiDecisionClient", FakeClient)
+    monkeypatch.setattr(bot_module, "GeminiEmbedding", FakeEmbedder)
 
     db = FakeDB()
     activity = FakeActivity()
