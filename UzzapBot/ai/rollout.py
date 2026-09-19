@@ -5,7 +5,7 @@ network service, writes to Supabase, sends messages, or changes configuration.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Mapping\nimport hashlib
 
 from ai.security import validate_ai_security_config
 

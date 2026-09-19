@@ -16,7 +16,7 @@ from ai.decision_engine import DecisionEngine
 from ai.room_context import RoomContextManager
 from ai.embedding import GeminiEmbedding
 from ai.budget import request_budget_available, response_budget_available
-from ai.rollout import evaluate_rollout
+from ai.rollout import evaluate_rollout, canary_selected
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
