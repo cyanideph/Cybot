@@ -86,16 +86,8 @@ def parse_command(text:str):
     command=parts[0][1:].casefold()
     args=parts[1:]
 
-    # Exactly one official command per game. Multi-word game names are
-    # parsed as one command, not as alternate command routes.
     game_commands={
-        "tt":"twist",
-        "math":"math",
-        "trivia":"trivia",
-        "anime":"anime",
-        "logic":"logic",
-        "algebra":"algebra",
-        "ph":"filipino",
+        "tt":"twist","math":"math","trivia":"trivia","anime":"anime","logic":"logic","algebra":"algebra","ph":"filipino",
     }
     if command in game_commands:
         if args != ["ON"] and not (len(args)==1 and args[0].casefold()=="on"):
@@ -103,25 +95,15 @@ def parse_command(text:str):
         return ["start", game_commands[command]]
 
     multi_game_commands={
-        ("random","quiz1"):"random1",
-        ("random","quiz2"):"random2",
-        ("random","quiz3"):"random3",
-        ("random","gta"):"randomgta",
-        ("gta","opm"):"gtaopm",
-        ("gta","foreign"):"gtaforeign",
-        ("english","wordhunt"):"wordhunt",
-        ("tagalog","wordhunt"):"summonnight2",
+        ("random","quiz1"):"random1",("random","quiz2"):"random2",("random","quiz3"):"random3",("random","gta"):"randomgta",
+        ("gta","opm"):"gtaopm",("gta","foreign"):"gtaforeign",("english","wordhunt"):"wordhunt",("tagalog","wordhunt"):"summonnight2",
     }
     if len(args)==1:
         key=(command,args[0].casefold())
         if key in multi_game_commands:
             return ["start",multi_game_commands[key]]
 
-    # Single official player/admin commands.
-    simple_commands={
-        "help","clue","repost","status","score","leaderboard","version",
-        "stop","pause","resume","next","reveal","activate","lock","unlock"
-    }
+    simple_commands={"help","clue","repost","status","score","leaderboard","version","stop","pause","resume","next","reveal","activate","lock","unlock"}
     if command in simple_commands:
         if args:
             return ["invalid_command", command]
@@ -207,7 +189,8 @@ def main()->None:
                         continue
 
                     if sub=="help": db.send(room,HELP)
-                    elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4.")
+                    elif sub=="version":
+                        db.send(room,"[c11]🤖 UzzapBot[c01] [c14]v4.5[c01]\n[c02]🎮 Game Core:[c01] [c14]4.5[c01]\n[c04]🕹️ Smart Game Modes[c01]\n[c07]💡 Progressive Clues[c01]\n[c18]🔄 Smart Game Cycles[c01]\n[c06]🏆 Scores & Leaderboards[c01]\n[c03]⚡ Fast Answer Checking[c01]\n[c02]🟢 Status: ONLINE[c01]")
                     elif sub=="activate":
                         cfg=room_settings(room,db); cfg["activated"]=True; cfg["locked"]=False; save_room_settings(db,room)
                         db.send(room,"[c03]UzzapBot ACTIVATED in this room.")
