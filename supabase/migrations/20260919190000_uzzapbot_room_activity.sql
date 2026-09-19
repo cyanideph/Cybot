@@ -11,6 +11,7 @@ create table if not exists public.uzzapbot_room_activity (
   max_messages_per_day integer not null default 20,
   last_human_activity_at timestamptz,
   last_bot_activity_at timestamptz,
+  last_ai_analysis_at timestamptz,
   activity_state text not null default 'INACTIVE',
   human_message_count_hour integer not null default 0,
   human_message_count_day integer not null default 0,
