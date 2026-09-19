@@ -8,50 +8,44 @@ from game_engine import GameEngine
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
 
-HELP="""[c03]UZZAPBOT GAME CORE 4 COMPATIBILITY
-[c01]!game start <game> [points] [score_limit]
-!game start <game> [points] endless
-Games:
-add minus multiply add1 minus1 multiply1
-algebra1 algebra2 algebra3
-trivia anime gtaforeign gtaopm logic
-wordhunt summonnight summonnight2 filipino love twist
-random1 random2 random3 randomgta math algebra
-Controls:
-!game stop
-!game pause
-!game resume
-!game next
-!game clue
-!game repost
-!game reveal
-!game status
-!game score
-!game leaderboard
+HELP="""[c03]UZZAPBOT GAME CORE 4
+Slash commands only.
 
-Legacy commands (original Game Core 4 style):
-RANDOM QUIZ1
-RANDOM QUIZ2
-RANDOM QUIZ3
-RANDOM GTA
-MATH ON
-TT ON
-TRIVIA ON
-ENGLISH WORDHUNT
-TAGALOG WORDHUNT
-PH ON
-GAME ON
-GAME OFF
-CLUE / SIRIT / HINT
-REPOST / REP0ST
-STATUS / SCORE / LEADERBOARD
-ACTIVATE / LOCK / UNLOCK
-/wcbot on / /wcbot off
+PLAYER COMMANDS:
+/help
+/clue
+/sirit
+/hint
+/repost
+/status
+/score
+/leaderboard
+/version
+
+ADMIN COMMANDS:
+/game start <game> [points] [score_limit]
+/game start <game> [points] endless
+/game stop
+/game pause
+/game resume
+/game next
+/game clue
+/game repost
+/game reveal
+/game status
+/game score
+/game leaderboard
+/activate
+/lock
+/unlock
+/wcbot on
+/wcbot off
 /wmsg <message>
-/challenge <room> / /challenge off
-MIRROR OFF
+/challenge <room>
+/challenge off
+/mirror off
 
-These are compatibility aliases; the modern GameEngine and persistence remain authoritative."""
+Legacy no-slash commands and !game commands are no longer accepted."""
 
 def is_admin(msg:dict)->bool:
     return str(msg.get("sender_id") or "") in ADMIN_IDS or str(msg.get("sender") or "").casefold() in ADMIN_USERNAMES
@@ -69,71 +63,50 @@ def room_settings(room: str, db: Database | None = None) -> dict:
 def save_room_settings(db: Database, room: str) -> None:
     db.save_room_settings(room, ROOM_SETTINGS[room])
 
-def parse_legacy_command(text:str):
-    """Translate legacy Game Core 4 commands into modern GameEngine actions."""
-    key=" ".join(text.strip().casefold().split())
-    starts={
-        "random quiz1":"random1",
-        "random quiz2":"random2",
-        "random quiz3":"random3",
-        "random gta":"randomgta",
-        "math on":"math",
-        "math":"math",
-        "tt on":"twist",
-        "tt":"twist",
-        "texttwist":"twist",
-        "english wordhunt":"wordhunt",
-        "wordhunt":"wordhunt",
-        "tagalog wordhunt":"summonnight2",
-        "tagaloghunt":"summonnight2",
-        "ph on":"filipino",
-        "trivia on":"trivia",
-        "anime on":"anime",
-        "logic on":"logic",
-        "gta opm":"gtaopm",
-        "gta foreign":"gtaforeign",
-        "algebra on":"algebra",
-        "game on":"random1",
-        "random on":"random1",
+def parse_command(text:str):
+    """Parse slash-only commands. Non-slash input is never treated as a command."""
+    raw=text.strip()
+    if not raw.startswith("/"):
+        return None
+    parts=raw.split()
+    if not parts:
+        return None
+    command=parts[0][1:].casefold()
+    args=parts[1:]
+
+    aliases={
+        "sirit":"clue",
+        "hint":"clue",
+        "rep0st":"repost",
+        "versi0n":"version",
     }
-    if key in starts: return ["start",starts[key]]
-    if key in {"game off","game stop","stop game"}: return ["stop"]
-    if key == "activate": return ["activate"]
-    if key == "challenge off": return ["challenge_off"]
-    if key == "mirror off": return ["mirror_off"]
-    if key == "lock": return ["lock"]
-    if key == "unlock": return ["unlock"]
-    if key in {"version","versi0n"}: return ["version"]
-    if key.startswith("/challenge "): return ["challenge", text.strip()[11:].strip()]
-    if key in {"/challenge off","/challenge stop"}: return ["challenge_off"]
-    if key.startswith("/wmsg "): return ["wmsg", text.strip()[6:].strip()]
-    if key in {"/wcbot on","/wcbot off","wcbot on","wcbot off"}: return ["wcbot", key.rsplit(" ",1)[-1]]
-    if key in {"help","game help"}: return ["help"]
-    if key in {"clue","/clue","sirit","/sirit","hint","/hint"}: return ["clue"]
-    if key in {"repost","/repost","rep0st"}: return ["repost"]
-    if key in {"status","/status"}: return ["status"]
-    if key in {"score","/score"}: return ["score"]
-    if key in {"leaderboard","/leaderboard"}: return ["leaderboard"]
-    if key in {"reveal","/reveal"}: return ["reveal"]
-    if key in {"next","/next"}: return ["next"]
-    if key in {"pause","/pause"}: return ["pause"]
-    if key in {"resume","/resume"}: return ["resume"]
-    return None
+    command=aliases.get(command,command)
 
+    if command=="game":
+        if not args:
+            return ["help"]
+        sub=args[0].casefold()
+        if sub=="random" and len(args)>1 and args[1].casefold() in {"quiz1","quiz2","quiz3","gta"}:
+            return ["start",{"quiz1":"random1","quiz2":"random2","quiz3":"random3","gta":"randomgta"}[args[1].casefold()]]
+        if sub=="english" and len(args)>1 and args[1].casefold()=="wordhunt":
+            return ["start","wordhunt"]
+        if sub=="tagalog" and len(args)>1 and args[1].casefold()=="wordhunt":
+            return ["start","summonnight2"]
+        if sub=="ph" and len(args)>1 and args[1].casefold()=="on":
+            return ["start","filipino"]
+        if sub=="game" and len(args)>1 and args[1].casefold()=="off":
+            return ["stop"]
+        return args
 
-def parse_game_command(text:str):
-    parts=text.split()
-    if len(parts)>=3 and parts[1].casefold()=="random" and parts[2].casefold() in {"quiz1","quiz2","quiz3","gta"}:
-        return ["start",{"quiz1":"random1","quiz2":"random2","quiz3":"random3","gta":"randomgta"}[parts[2].casefold()]]
-    if len(parts)>=3 and parts[1].casefold()=="english" and parts[2].casefold()=="wordhunt":
-        return ["start","wordhunt"]
-    if len(parts)>=3 and parts[1].casefold()=="tagalog" and parts[2].casefold()=="wordhunt":
-        return ["start","summonnight2"]
-    if len(parts)>=2 and parts[1].casefold()=="ph" and len(parts)>=3 and parts[2].casefold()=="on":
-        return ["start","filipino"]
-    if len(parts)>=2 and parts[1].casefold()=="game" and len(parts)>=3 and parts[2].casefold()=="off":
-        return ["stop"]
-    return parts[1:]
+    if command in {"challenge"} and args and args[0].casefold() in {"off","stop"}:
+        return ["challenge_off"]
+    if command=="wcbot" and args and args[0].casefold() in {"on","off"}:
+        return ["wcbot",args[0].casefold()]
+    if command=="wmsg":
+        return ["wmsg"," ".join(args)]
+    if command in {"challenge","help","clue","repost","status","score","leaderboard","version","activate","lock","unlock","mirror_off"}:
+        return [command,*args]
+    return [command,*args]
 
 def main()->None:
     validate()
@@ -163,106 +136,103 @@ def main()->None:
                 uid=str(msg.get("sender_id") or "")
                 if not room or not text: continue
                 try:
-                    is_modern=text.casefold().startswith("!game")
-                    legacy=parse_legacy_command(text) if not is_modern else None
-                    if is_modern or legacy:
-                        admin=is_admin(msg)
-                        log.info('COMMAND room="%s" sender="%s" body=%r admin=%s legacy=%s',room,username,text,admin,bool(legacy))
-                        args=legacy if legacy else parse_game_command(text)
-                        sub=args[0].casefold() if args else "help"
-                        public_legacy={"help","clue","repost","score","status","leaderboard"}
-                        if not legacy and not admin:
-                            db.send(room,"[c08]Game controls are admin-only during testing."); continue
-                        if legacy and sub not in public_legacy and not admin:
-                            db.send(room,"[c08]Game controls are admin-only during testing."); continue
-                        if sub=="help": db.send(room,HELP)
-                        elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4 compatibility layer on the modern UzzapBot architecture.")
-                        elif sub=="activate":
-                            cfg=room_settings(room,db); cfg["activated"]=True; cfg["locked"]=False; save_room_settings(db,room)
-                            db.send(room,"[c03]UzzapBot ACTIVATED in this room.")
-                        elif sub=="lock":
-                            cfg=room_settings(room,db); cfg["locked"]=True; save_room_settings(db,room)
-                            s=games.get(room)
-                            if s: s.paused=True; persist(db,games,room)
-                            db.send(room,"[c12]Systems LOCK!!! Game input is locked in this room.")
-                        elif sub=="unlock":
-                            cfg=room_settings(room,db); cfg["locked"]=False; save_room_settings(db,room)
-                            s=games.get(room)
-                            if s: s.paused=False; persist(db,games,room)
-                            db.send(room,"[c03]Systems UNLOCK!!! Game input is enabled in this room.")
-                        elif sub=="wcbot":
-                            cfg=room_settings(room,db); cfg["wcbot"]=(len(args)>1 and args[1].casefold()=="on"); save_room_settings(db,room)
-                            db.send(room,"[c03]Welcome bot " + ("ON." if cfg["wcbot"] else "OFF."))
-                        elif sub=="wmsg":
-                            cfg=room_settings(room,db); message=" ".join(args[1:]).strip()
-                            if not message: db.send(room,"[c08]Usage: /wmsg <message>")
-                            else: cfg["welcome_message"]=message; save_room_settings(db,room); db.send(room,"[c03]Welcome message updated.")
-                        elif sub=="challenge":
-                            cfg=room_settings(room,db); target=" ".join(args[1:]).strip()
-                            if not target: db.send(room,"[c08]Usage: /challenge <room>")
-                            else: cfg["challenge_room"]=target; save_room_settings(db,room); db.send(room,f"[c03]Challenge room set to: {target}")
-                        elif sub=="challenge_off":
-                            room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Challenge room disabled.")
-                        elif sub=="mirror_off":
-                            room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Mirror/challenge posting disabled.")
-                        elif sub=="legacy_noop": db.send(room,"[c08]Legacy command recognized. This feature is handled by the modern room architecture.")
-                        elif sub=="start":
-                            game=args[1] if len(args)>1 else "math"
-                            points=int(args[2]) if len(args)>2 else DEFAULT_POINTS
-                            endless=any(x.casefold()=="endless" for x in args[3:])
-                            numeric=[x for x in args[3:] if x.isdigit()]
-                            limit=int(numeric[0]) if numeric else DEFAULT_LIMIT
-                            games.start(room,game,points,limit,endless)
-                            persist(db,games,room); db.send(room,games.repost(room))
-                        elif sub=="stop":
-                            if games.get(room):
-                                games.stop(room); db.delete_game_state(room); db.send(room,"[c08]Game stopped.")
-                            else: db.send(room,"[c08]No active game.")
-                        elif sub=="pause":
-                            s=games.get(room)
-                            if not s: db.send(room,"[c08]No active game.")
-                            else:
-                                s.paused=True; persist(db,games,room); db.send(room,"[c12]Game paused.")
-                        elif sub=="resume":
-                            s=games.get(room)
-                            if not s: db.send(room,"[c08]No active game.")
-                            else:
-                                s.paused=False; persist(db,games,room); db.send(room,"[c03]Game resumed.\n"+games.repost(room))
-                        elif sub=="next":
-                            db.send(room,games.next_question(games.get(room))); persist(db,games,room)
-                        elif sub=="clue":
-                            db.send(room,games.clue(room)); persist(db,games,room)
-                        elif sub=="repost":
-                            db.send(room,games.repost(room))
-                        elif sub=="reveal":
-                            s=games.get(room)
-                            if not s: db.send(room,"[c08]No active game.")
-                            else:
-                                db.send(room,f"[c0c]The Correct Answer is: [c03]{s.answer}")
-                                db.send(room,games.next_question(s)); persist(db,games,room)
-                        elif sub=="status": db.send(room,games.status(room))
-                        elif sub=="score": db.send(room,games.score_text(room,uid))
-                        elif sub=="leaderboard": db.send(room,games.leaderboard_text(room))
-                        else: db.send(room,"[c08]Unknown game command. Use !game help")
+                    if not text.startswith("/"):
+                        session=games.get(room)
+                        cfg=room_settings(room,db)
+                        if session and not cfg.get("locked"):
+                            profile=db.profile(uid,username) or {}
+                            nickname=str(profile.get("nickname") or username)
+                            _,response=games.answer(room,uid,username,nickname,text)
+                            if response:
+                                persist(db,games,room); db.send(room,response)
+                                target=cfg.get("challenge_room")
+                                if target and target != room: db.send(target,response)
                         continue
-                    session=games.get(room)
-                    cfg=room_settings(room,db)
-                    if session and cfg.get("locked"):
+
+                    args=parse_command(text)
+                    if not args: continue
+                    admin=is_admin(msg)
+                    sub=args[0].casefold()
+                    player_commands={"help","clue","repost","status","score","leaderboard","version"}
+                    admin_commands={"start","stop","pause","resume","next","reveal","activate","lock","unlock","wcbot","wmsg","challenge","challenge_off","mirror_off"}
+                    log.info('COMMAND room="%s" sender="%s" body=%r admin=%s',room,username,text,admin)
+
+                    if sub not in player_commands and sub not in admin_commands:
+                        db.send(room,"[c08]Unknown command. Use /help")
                         continue
-                    if session and not text.startswith("/"):
-                        profile=db.profile(uid,username) or {}
-                        nickname=str(profile.get("nickname") or username)
-                        _,response=games.answer(room,uid,username,nickname,text)
-                        if response:
-                            persist(db,games,room); db.send(room,response)
-                            target=cfg.get("challenge_room")
-                            if target and target != room: db.send(target,response)
+                    if sub in admin_commands and not admin:
+                        db.send(room,"[c08]Admin-only command.")
+                        continue
+
+                    if sub=="help": db.send(room,HELP)
+                    elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4 compatibility layer on the modern UzzapBot architecture.")
+                    elif sub=="activate":
+                        cfg=room_settings(room,db); cfg["activated"]=True; cfg["locked"]=False; save_room_settings(db,room)
+                        db.send(room,"[c03]UzzapBot ACTIVATED in this room.")
+                    elif sub=="lock":
+                        cfg=room_settings(room,db); cfg["locked"]=True; save_room_settings(db,room)
+                        s=games.get(room)
+                        if s: s.paused=True; persist(db,games,room)
+                        db.send(room,"[c12]Systems LOCK!!! Game input is locked in this room.")
+                    elif sub=="unlock":
+                        cfg=room_settings(room,db); cfg["locked"]=False; save_room_settings(db,room)
+                        s=games.get(room)
+                        if s: s.paused=False; persist(db,games,room)
+                        db.send(room,"[c03]Systems UNLOCK!!! Game input is enabled in this room.")
+                    elif sub=="wcbot":
+                        cfg=room_settings(room,db); cfg["wcbot"]=(len(args)>1 and args[1].casefold()=="on"); save_room_settings(db,room)
+                        db.send(room,"[c03]Welcome bot " + ("ON." if cfg["wcbot"] else "OFF."))
+                    elif sub=="wmsg":
+                        cfg=room_settings(room,db); message=" ".join(args[1:]).strip()
+                        if not message: db.send(room,"[c08]Usage: /wmsg <message>")
+                        else: cfg["welcome_message"]=message; save_room_settings(db,room); db.send(room,"[c03]Welcome message updated.")
+                    elif sub=="challenge":
+                        cfg=room_settings(room,db); target=" ".join(args[1:]).strip()
+                        if not target: db.send(room,"[c08]Usage: /challenge <room>")
+                        else: cfg["challenge_room"]=target; save_room_settings(db,room); db.send(room,f"[c03]Challenge room set to: {target}")
+                    elif sub=="challenge_off":
+                        room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Challenge room disabled.")
+                    elif sub=="mirror_off":
+                        room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Mirror/challenge posting disabled.")
+                    elif sub=="start":
+                        game=args[1] if len(args)>1 else "math"
+                        points=int(args[2]) if len(args)>2 else DEFAULT_POINTS
+                        endless=any(x.casefold()=="endless" for x in args[3:])
+                        numeric=[x for x in args[3:] if x.isdigit()]
+                        limit=int(numeric[0]) if numeric else DEFAULT_LIMIT
+                        games.start(room,game,points,limit,endless)
+                        persist(db,games,room); db.send(room,games.repost(room))
+                    elif sub=="stop":
+                        if games.get(room):
+                            games.stop(room); db.delete_game_state(room); db.send(room,"[c08]Game stopped.")
+                        else: db.send(room,"[c08]No active game.")
+                    elif sub=="pause":
+                        s=games.get(room)
+                        if not s: db.send(room,"[c08]No active game.")
+                        else: s.paused=True; persist(db,games,room); db.send(room,"[c12]Game paused.")
+                    elif sub=="resume":
+                        s=games.get(room)
+                        if not s: db.send(room,"[c08]No active game.")
+                        else: s.paused=False; persist(db,games,room); db.send(room,"[c03]Game resumed.\n"+games.repost(room))
+                    elif sub=="next":
+                        db.send(room,games.next_question(games.get(room))); persist(db,games,room)
+                    elif sub=="clue":
+                        db.send(room,games.clue(room)); persist(db,games,room)
+                    elif sub=="repost":
+                        db.send(room,games.repost(room))
+                    elif sub=="reveal":
+                        s=games.get(room)
+                        if not s: db.send(room,"[c08]No active game.")
+                        else:
+                            db.send(room,f"[c0c]The Correct Answer is: [c03]{s.answer}")
+                            db.send(room,games.next_question(s)); persist(db,games,room)
+                    elif sub=="status": db.send(room,games.status(room))
+                    elif sub=="score": db.send(room,games.score_text(room,uid))
+                    elif sub=="leaderboard": db.send(room,games.leaderboard_text(room))
                 except Exception as exc:
                     log.exception('COMMAND ERROR room="%s" sender="%s"',room,username)
-                    try:
-                        db.send(room,f"[c08]Game error: {exc}")
-                    except Exception:
-                        log.exception('FAILED TO SEND GAME ERROR room="%s"',room)
+                    try: db.send(room,f"[c08]Game error: {exc}")
+                    except Exception: log.exception('FAILED TO SEND GAME ERROR room="%s"',room)
             time.sleep(POLL_SECONDS)
         except KeyboardInterrupt:
             log.info("Bot stopped by user"); return
