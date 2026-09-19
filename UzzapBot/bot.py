@@ -228,11 +228,14 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             "message_count": len(recent),
             "source_through_message_id": recent[-1].get("id"),
         })
-        if query_embedding.ok and query_embedding.values:
+        document_embedding = embedder.embed_document(
+            conversation[-1800:], title=f"{room_name} room context"
+        )
+        if document_embedding.ok and document_embedding.values:
             try:
                 latest = db.load_room_memory(room_name, 1)
                 if latest:
-                    db.save_room_memory_embedding(int(latest[-1]["id"]), query_embedding.values)
+                    db.save_room_memory_embedding(int(latest[-1]["id"]), document_embedding.values)
             except Exception:
                 log.exception('AI MEMORY EMBEDDING SAVE ERROR room="%s"', room_name)
         if not AI_DRY_RUN and validated.get("allowed") and validated.get("response"):
