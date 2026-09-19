@@ -37,6 +37,7 @@ class Session:
     recent_games: list[str] = field(default_factory=list)
     cycle_number: int = 1
     cycle_games_used: list[str] = field(default_factory=list)
+    reply_history: dict[str, list[str]] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.mode: self.mode = self.game
@@ -249,22 +250,83 @@ class GameEngine:
         return f"[c03]{s.mode.upper()} COMPLETE\n[c01]Final leaderboard\n"+"\n".join(f"{i}. {p.nickname} — {p.score}" for i,p in enumerate(rows[:10],1))
 
     CORRECT_REPLIES = (
-        "🎉 Correct, {name}! +{points} points.",
-        "🔥 Nice one, {name}! +{points} points.",
-        "👏 Good answer, {name}! +{points} points.",
-        "⚡ Fast one, {name}! +{points} points.",
-        "💚 You got it, {name}! +{points} points.",
-        "🏆 Excellent, {name}! +{points} points.",
+        "[c02]🎉 CORRECT, {name}! [c07]+{points} POINTS[c01]",
+        "[c02]🔥 Nice one, {name}! [c07]+{points} points[c01]",
+        "[c02]👏 Excellent answer, {name}! [c07]+{points}[c01]",
+        "[c02]⚡ Fast one, {name}! [c07]+{points} points[c01]",
+        "[c02]💚 You got it, {name}! [c07]+{points}[c01]",
+        "[c14]🏆 Great answer, {name}! [c07]+{points}[c01]",
+        "[c02]🎯 Bullseye, {name}! [c07]+{points}[c01]",
+        "[c02]🚀 Nailed it, {name}! [c07]+{points} points[c01]",
+        "[c02]✨ That's right, {name}! [c07]+{points}[c01]",
+        "[c14]💥 Perfect answer, {name}! [c07]+{points}[c01]",
+        "[c02]😎 Smooth one, {name}! [c07]+{points}[c01]",
+        "[c02]🥳 Another point for you, {name}! [c07]+{points}[c01]",
+        "[c14]👑 Well played, {name}! [c07]+{points}[c01]",
+        "[c02]💯 You got that one! [c07]+{points}[c01]",
+        "[c02]🎊 Correct! Keep it going, {name}! [c07]+{points}[c01]",
+    )
+    WRONG_REPLIES = (
+        "[c08]❌ Not quite, {name}.[c01] Keep trying!",
+        "[c12]🤔 Close, {name}.[c01] Give it another shot.",
+        "[c12]💪 Keep going, {name}![c01] You can get the next one.",
+        "[c04]🧠 Think again, {name}.[c01]",
+        "[c04]🔎 Almost there, {name}.[c01] Try another answer.",
+        "[c12]😅 Nope, not that one.[c01] Keep guessing!",
+        "[c04]🎯 Good attempt, {name}.[c01] Try again.",
+        "[c12]💡 You're getting warmer, {name}.[c01]",
+        "[c04]👀 Take another look, {name}.[c01]",
+        "[c12]🙃 Not this time, {name}.[c01]",
+        "[c12]🔥 Keep the guesses coming, {name}![c01]",
+        "[c04]🧐 Try another answer, {name}.[c01]",
     )
     CLUE_PREFIXES = (
-        "💡 Clue",
-        "🧩 Here's a clue",
-        "🔎 Try this clue",
-        "✨ Clue",
+        "[c12]💡 Here's a clue...",
+        "[c12]🧩 Need some help?",
+        "[c12]🔎 Look closely...",
+        "[c12]✨ A little hint for you...",
+        "[c12]🧠 Think about this...",
+        "[c12]👀 Here's something useful...",
+        "[c12]🎯 Your next clue...",
+        "[c12]📖 Maybe this helps...",
+        "[c12]💭 Consider this...",
+        "[c12]🔐 Unlocking another clue...",
+    )
+    NEW_GAME_REPLIES = (
+        "[c03]🎮 NEW ROUND[c01]",
+        "[c03]🎮 NEXT CHALLENGE[c01]",
+        "[c03]⚡ HERE WE GO[c01]",
+        "[c03]🔥 NEXT QUESTION[c01]",
+        "[c03]🧠 TIME TO THINK[c01]",
+        "[c03]🎯 YOUR NEXT CHALLENGE[c01]",
+    )
+    WIN_REPLIES = (
+        "[c14]🏆 GAME WINNER 🏆",
+        "[c14]🎉 WE HAVE A WINNER! 🎉",
+        "[c14]👑 CHAMPION! 👑",
+        "[c14]💥 GAME OVER — WINNER! 💥",
+        "[c14]🥳 VICTORY! 🥳",
+        "[c14]⭐ WHAT A FINISH! ⭐",
     )
 
-    def _personality(self, options, **values):
-        return random.choice(options).format(**values)
+    def _personality(self, category, options, **values):
+        """Pick a reply while avoiding the category's recent replies."""
+        room=values.pop("_room", "")
+        s=self.sessions.get(room)
+        if s is None:
+            return random.choice(options).format(**values)
+        recent=s.reply_history.setdefault(category, [])
+        available=[option for option in options if option not in recent]
+        if not available:
+            recent.clear()
+            available=list(options)
+        template=random.choice(available)
+        recent.append(template)
+        del recent[:-4]
+        return template.format(**values)
+
+    def _reply(self, s, category, options, **values):
+        return self._personality(category, options, _room=s.room, **values)
 
     def answer(self,room,uid,username,nickname,text):
         s=self.sessions.get(room)
@@ -274,10 +336,11 @@ class GameEngine:
         p.nickname=nickname or p.nickname; p.username=username or p.username; p.attempts+=1
         if self._answer_matches(text,s.answer):
             p.correct+=1; p.score+=s.points
-            response=f"[c03]{self._personality(self.CORRECT_REPLIES,name=p.nickname,points=s.points)}"
-            response+="\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
+            response=self._reply(s,"correct",self.CORRECT_REPLIES,name=p.nickname,points=s.points)
+            response+="\\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
             return True,response
-        return False,""
+        response=self._reply(s,"wrong",self.WRONG_REPLIES,name=p.nickname)
+        return False,response
 
     def clue(self,room,uid=None):
         s=self.sessions.get(room)
@@ -304,8 +367,8 @@ class GameEngine:
             p=s.players.get(uid)
             if p:
                 p.clues_used += 1
-        prefix=random.choice(self.CLUE_PREFIXES)
-        return f"[c12]{prefix} {s.clue_level}/3: {s.clue_text}"
+        prefix=self._reply(s,"clue",self.CLUE_PREFIXES)
+        return f"{prefix} [c01]{s.clue_level}/3: {s.clue_text}"
 
     def repost(self,room):
         s=self.sessions.get(room)
@@ -341,6 +404,7 @@ class GameEngine:
                 "question":s.question,"answer":s.answer,"clue_text":s.clue_text,"number":s.number,
                 "used_questions":list(s.used_questions), "clue_level":s.clue_level, "recent_games":list(s.recent_games),
                 "cycle_number":s.cycle_number, "cycle_games_used":list(s.cycle_games_used),
+                "reply_history":{k:list(v) for k,v in s.reply_history.items()},
                 "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts,"clues_used":p.clues_used} for p in s.players.values()]}
 
     def restore_state(self,state):
@@ -363,7 +427,8 @@ class GameEngine:
                   mode=mode,endless=bool(state.get("endless")),
                   current_game=str(state.get("current_game") or game or mode), recent_games=list(state.get("recent_games") or []),
                   cycle_number=max(1,int(state.get("cycle_number") or 1)),
-                  cycle_games_used=list(state.get("cycle_games_used") or []))
+                  cycle_games_used=list(state.get("cycle_games_used") or []),
+                  reply_history={str(k):list(v or []) for k,v in (state.get("reply_history") or {}).items() if isinstance(v,list)})
         s.used_questions=set(state.get("used_questions") or [])
 
         for p in state.get("players") or []:
