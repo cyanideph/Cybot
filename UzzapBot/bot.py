@@ -12,6 +12,7 @@ from game_engine import GameEngine
 from ai.activity_engine import ActivityEngine
 from ai.gemini_decision import GeminiDecisionClient
 from ai.decision_engine import DecisionEngine
+from ai.room_context import RoomContextManager
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
@@ -173,10 +174,13 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             activity.get_or_create(room_name).record_ai_analysis()
             db.save_room_activity(activity.snapshot(room_name))
             continue
-        conversation = "\n".join(
-            f'{str(row.get("sender") or "user")}: {str(row.get("body") or "")[:500]}'
-            for row in recent
+        context = RoomContextManager(max_recent_messages=20, max_memory_items=5).build(
+            room_name,
+            recent,
+            db.load_room_summary(room_name),
+            db.load_room_memory(room_name, 5),
         )
+        conversation = context.prompt_text()
         result = client.decide(conversation)
         activity.get_or_create(room_name).record_ai_analysis()
         db.save_room_activity(activity.snapshot(room_name))
@@ -192,6 +196,21 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             "action": decision.get("action"), "game": validated.get("game"),
             "allowed": validated.get("allowed"), "reason": validated.get("reason"),
             "response": validated.get("response"), "input_chars": len(conversation),
+        })
+        # Keep a short-lived deterministic memory snapshot for future context.
+        # It is never treated as an instruction and cannot execute commands.
+        db.save_room_memory({
+            "room_name": room_name,
+            "memory_type": "conversation_window",
+            "content": conversation[-1800:],
+            "metadata": {"source": "ai_pass", "topic": decision.get("topic") or "GENERAL"},
+        })
+        db.save_room_summary({
+            "room_name": room_name,
+            "summary": conversation[-1800:],
+            "topic": str(decision.get("topic") or "GENERAL"),
+            "message_count": len(recent),
+            "source_through_message_id": recent[-1].get("id"),
         })
         if not AI_DRY_RUN and validated.get("allowed") and validated.get("response"):
             db.send(room_name, validated["response"])
