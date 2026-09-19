@@ -35,7 +35,7 @@ grant select, insert, update, delete on public.uzzapbot_room_summaries to servic
 
 create index if not exists uzzapbot_room_memory_embedding_hnsw_idx
   on public.uzzapbot_room_memory
-  using hnsw (embedding vector_cosine_ops)
+  using hnsw (embedding extensions.vector_cosine_ops)
   where embedding is not null;
 
 create or replace function public.uzzapbot_match_room_memory(
@@ -65,7 +65,7 @@ as $$
     m.content,
     m.metadata,
     m.created_at,
-    1 - (m.embedding <=> p_query_embedding) as similarity
+    1 - (m.embedding OPERATOR(extensions.<=>) p_query_embedding) as similarity
   from public.uzzapbot_room_memory m
   where m.room_name = p_room_name
     and m.embedding is not null
