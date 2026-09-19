@@ -11,65 +11,51 @@ log=logging.getLogger("uzzapbot")
 HELP="""[c04]╔══════════════════════════════╗
 [c14]        UZZAPBOT GAME CORE 4
 [c04]╚══════════════════════════════╝
-[c09]Slash commands only.
+[c09]One official command per action. Slash commands only.
 
 [c02]━━ PLAYER COMMANDS ━━
-[c16]/help[c09] — Show this help
-[c16]/clue[c09] — Get a clue
-[c16]/sirit[c09] — Get a clue
-[c16]/hint[c09] — Get a clue
-[c16]/repost[c09] — Repost the current question
-[c16]/status[c09] — Show game status
-[c16]/score[c09] — Show your score
-[c16]/leaderboard[c09] — Show leaderboard
-[c16]/version[c09] — Show bot version
+[c16]/HELP[c09] — Show this help
+[c16]/CLUE[c09] — Get a clue
+[c16]/REPOST[c09] — Repost the current question
+[c16]/STATUS[c09] — Show game status
+[c16]/SCORE[c09] — Show your score
+[c16]/LEADERBOARD[c09] — Show leaderboard
+[c16]/VERSION[c09] — Show bot version
 
-[c03]━━ ADMIN COMMANDS ━━
-[c16]/game start <game> [points] [score_limit]
-[c16]/game start <game> [points] endless
-[c16]/game stop[c09] — Stop the game
-[c16]/game on <game> [points] [score_limit][c09] — Start a game
-[c16]/game off[c09] — Stop the game
-[c16]/game pause[c09] — Pause the game
-[c16]/game resume[c09] — Resume the game
-[c16]/game next[c09] — Next question
-[c16]/game clue[c09] — Show clue
-[c16]/game repost[c09] — Repost question
-[c16]/game reveal[c09] — Reveal answer
-[c16]/game status[c09] — Show game status
-[c16]/game score[c09] — Show score
-[c16]/game leaderboard[c09] — Show leaderboard
-[c09]Example: /game start trivia 1 10
-[c09]Endless: /game start trivia 1 endless
-[c09]Players are registered automatically when they answer during an active game; no /join command is required.
-[c14]GAME MODES[c09]
-[c06]/TT ON[c09] — Typing Test
-[c06]/MATH ON[c09] — Math game
-[c06]/TRIVIA ON[c09] — Trivia game
-[c06]/ANIME ON[c09] — Anime game
-[c06]/LOGIC ON[c09] — Logic game
-[c06]/ALGEBRA ON[c09] — Algebra game
-[c06]/PH ON[c09] — Philippine trivia
-[c06]/RANDOM QUIZ1[c09] — Random quiz set 1
-[c06]/RANDOM QUIZ2[c09] — Random quiz set 2
-[c06]/RANDOM QUIZ3[c09] — Random quiz set 3
-[c06]/RANDOM GTA[c09] — Random GTA set
+[c14]━━ GAME COMMANDS ━━
+[c06]/TT ON[c09] — Text Twist
+[c06]/MATH ON[c09] — Math
+[c06]/TRIVIA ON[c09] — Trivia
+[c06]/ANIME ON[c09] — Anime
+[c06]/LOGIC ON[c09] — Logic
+[c06]/ALGEBRA ON[c09] — Algebra
+[c06]/PH ON[c09] — Philippine game
+[c06]/RANDOM QUIZ1[c09] — Random quiz 1
+[c06]/RANDOM QUIZ2[c09] — Random quiz 2
+[c06]/RANDOM QUIZ3[c09] — Random quiz 3
+[c06]/RANDOM GTA[c09] — Random GTA
 [c06]/GTA OPM[c09] — OPM GTA
 [c06]/GTA FOREIGN[c09] — Foreign GTA
 [c06]/ENGLISH WORDHUNT[c09] — English Wordhunt
 [c06]/TAGALOG WORDHUNT[c09] — Tagalog Wordhunt
-[c09]All Game Core modes accept optional ON; they use the default points/score limit.
 
-[c16]/activate[c09] — Activate room
-[c16]/lock[c09] — Lock game input
-[c16]/unlock[c09] — Unlock game input
-[c16]/wcbot on|off[c09] — Welcome bot
-[c16]/wmsg <message>[c09] — Set welcome message
-[c16]/challenge <room>[c09] — Set challenge room
-[c16]/challenge off[c09] — Disable challenge
-[c16]/mirror off[c09] — Disable mirror
+[c03]━━ ADMIN COMMANDS ━━
+[c16]/STOP[c09] — Stop the current game
+[c16]/PAUSE[c09] — Pause the current game
+[c16]/RESUME[c09] — Resume the current game
+[c16]/NEXT[c09] — Next question
+[c16]/REVEAL[c09] — Reveal the answer
+[c16]/ACTIVATE[c09] — Activate room
+[c16]/LOCK[c09] — Lock game input
+[c16]/UNLOCK[c09] — Unlock game input
+[c16]/WCBOT ON[c09] — Enable welcome bot
+[c16]/WCBOT OFF[c09] — Disable welcome bot
+[c16]/WMSG <message>[c09] — Set welcome message
+[c16]/CHALLENGE <room>[c09] — Set challenge room
+[c16]/CHALLENGE OFF[c09] — Disable challenge/mirror
 
-[c14]TIP: [c09]Use /help anytime to see commands.
+[c09]Game commands use the default points and score limit.
+[c09]Players are registered automatically when they answer.
 [c14]GAME CORE 4.5[c09] — UzzapBot compatibility edition."""
 
 def is_admin(msg:dict)->bool:
@@ -89,78 +75,70 @@ def save_room_settings(db: Database, room: str) -> None:
     db.save_room_settings(room, ROOM_SETTINGS[room])
 
 def parse_command(text:str):
-    """Parse slash-only commands. Non-slash input is never treated as a command."""
+    """Parse the single official command for each UzzapBot action."""
     raw=text.strip()
     if not raw.startswith("/"):
         return None
     parts=raw.split()
     if not parts:
         return None
+
     command=parts[0][1:].casefold()
     args=parts[1:]
 
-    aliases={
-        "sirit":"clue",
-        "hint":"clue",
-        "rep0st":"repost",
-        "versi0n":"version",
+    # Exactly one official command per game.
+    game_commands={
+        "tt":"twist",
+        "math":"math",
+        "trivia":"trivia",
+        "anime":"anime",
+        "logic":"logic",
+        "algebra":"algebra",
+        "ph":"filipino",
+        "random_quiz1":"random1",
+        "random_quiz2":"random2",
+        "random_quiz3":"random3",
+        "random_gta":"randomgta",
+        "gta_opm":"gtaopm",
+        "gta_foreign":"gtaforeign",
+        "english_wordhunt":"wordhunt",
+        "tagalog_wordhunt":"summonnight2",
     }
-    command=aliases.get(command,command)
+    if command in game_commands:
+        if not args or args[0].casefold() != "on":
+            return ["invalid_game_command", command]
+        if len(args) != 1:
+            return ["invalid_game_command", command]
+        return ["start", game_commands[command]]
 
-    # Game Core 4.5 mode commands use slash syntax, e.g. /TT ON or /MATH ON.
-    # They route through the same validated GameEngine.start() path as /game start.
-    mode_commands={
-        "tt":"twist", "math":"math", "trivia":"trivia", "anime":"anime",
-        "logic":"logic", "algebra":"algebra", "ph":"filipino",
-        "random":"random1", "random_quiz1":"random1", "random_quiz2":"random2",
-        "random_quiz3":"random3", "random_gta":"randomgta",
-        "gta_opm":"gtaopm", "gta_foreign":"gtaforeign",
-        "english_wordhunt":"wordhunt", "tagalog_wordhunt":"summonnight2",
+    # Single official player/admin commands.
+    simple_commands={
+        "help","clue","repost","status","score","leaderboard","version",
+        "stop","pause","resume","next","reveal","activate","lock","unlock"
     }
-    if command in mode_commands:
-        # Optional ON is accepted for legacy Game Core compatibility.
-        game=mode_commands[command]
-        rest=args[1:] if args and args[0].casefold()=="on" else args
-        return ["start",game,*rest]
-    if command in {"random","gta","english","tagalog"}:
-        if command=="random" and args:
-            q=args[0].casefold()
-            if q in {"quiz1","quiz2","quiz3","gta"}:
-                return ["start",{"quiz1":"random1","quiz2":"random2","quiz3":"random3","gta":"randomgta"}[q],*args[1:]]
-        if command=="gta" and args:
-            q=args[0].casefold()
-            if q in {"opm","foreign"}:
-                return ["start",{"opm":"gtaopm","foreign":"gtaforeign"}[q],*args[1:]]
-        if command=="english" and args and args[0].casefold()=="wordhunt":
-            return ["start","wordhunt",*args[1:]]
-        if command=="tagalog" and args and args[0].casefold()=="wordhunt":
-            return ["start","summonnight2",*args[1:]]
+    if command in simple_commands:
+        if args:
+            return ["invalid_command", command]
+        return [command]
 
-    if command=="game":
-        if not args:
-            return ["help"]
-        sub=args[0].casefold()
-        if sub=="random" and len(args)>1 and args[1].casefold() in {"quiz1","quiz2","quiz3","gta"}:
-            return ["start",{"quiz1":"random1","quiz2":"random2","quiz3":"random3","gta":"randomgta"}[args[1].casefold()]]
-        if sub=="english" and len(args)>1 and args[1].casefold()=="wordhunt":
-            return ["start","wordhunt"]
-        if sub=="tagalog" and len(args)>1 and args[1].casefold()=="wordhunt":
-            return ["start","summonnight2"]
-        if sub=="ph" and len(args)>1 and args[1].casefold()=="on":
-            return ["start","filipino"]
-        if sub=="game" and len(args)>1 and args[1].casefold()=="off":
-            return ["stop"]
-        return args
-
-    if command in {"challenge"} and args and args[0].casefold() in {"off","stop"}:
-        return ["challenge_off"]
-    if command=="wcbot" and args and args[0].casefold() in {"on","off"}:
+    if command=="wcbot":
+        if len(args)!=1 or args[0].casefold() not in {"on","off"}:
+            return ["invalid_command","wcbot"]
         return ["wcbot",args[0].casefold()]
+
     if command=="wmsg":
-        return ["wmsg"," ".join(args)]
-    if command in {"challenge","help","clue","repost","status","score","leaderboard","version","activate","lock","unlock","mirror_off"}:
-        return [command,*args]
-    return [command,*args]
+        message=" ".join(args).strip()
+        return ["wmsg",message]
+
+    if command=="challenge":
+        if len(args)==1 and args[0].casefold()=="off":
+            return ["challenge_off"]
+        target=" ".join(args).strip()
+        if not target:
+            return ["invalid_command","challenge"]
+        return ["challenge",target]
+
+    return ["unknown",command]
 
 def main()->None:
     validate()
@@ -208,18 +186,22 @@ def main()->None:
                     admin=is_admin(msg)
                     sub=args[0].casefold()
                     player_commands={"help","clue","repost","status","score","leaderboard","version"}
-                    admin_commands={"start","stop","pause","resume","next","reveal","activate","lock","unlock","wcbot","wmsg","challenge","challenge_off","mirror_off"}
+                    admin_commands={"start","stop","pause","resume","next","reveal","activate","lock","unlock","wcbot","wmsg","challenge","challenge_off"}
                     log.info('COMMAND room="%s" sender="%s" body=%r admin=%s',room,username,text,admin)
 
+                    if sub=="unknown" or sub=="invalid_command" or sub=="invalid_game_command":
+                        db.send(room,"[c08]Invalid command. Use /HELP")
+                        continue
+
                     if sub not in player_commands and sub not in admin_commands:
-                        db.send(room,"[c08]Unknown command. Use /help")
+                        db.send(room,"[c08]Unknown command. Use /HELP")
                         continue
                     if sub in admin_commands and not admin:
                         db.send(room,"[c08]Admin-only command.")
                         continue
 
                     if sub=="help": db.send(room,HELP)
-                    elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4 compatibility layer on the modern UzzapBot architecture.")
+                    elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4.")
                     elif sub=="activate":
                         cfg=room_settings(room,db); cfg["activated"]=True; cfg["locked"]=False; save_room_settings(db,room)
                         db.send(room,"[c03]UzzapBot ACTIVATED in this room.")
@@ -249,12 +231,8 @@ def main()->None:
                     elif sub=="mirror_off":
                         room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Mirror/challenge posting disabled.")
                     elif sub=="start":
-                        game=args[1] if len(args)>1 else "math"
-                        points=int(args[2]) if len(args)>2 else DEFAULT_POINTS
-                        endless=any(x.casefold()=="endless" for x in args[3:])
-                        numeric=[x for x in args[3:] if x.isdigit()]
-                        limit=int(numeric[0]) if numeric else DEFAULT_LIMIT
-                        games.start(room,game,points,limit,endless)
+                        game=args[1]
+                        games.start(room,game,DEFAULT_POINTS,DEFAULT_LIMIT,False)
                         persist(db,games,room); db.send(room,games.repost(room))
                     elif sub=="stop":
                         if games.get(room):
