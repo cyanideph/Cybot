@@ -169,6 +169,13 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
     if not request_budget_available(global_usage, AI_MAX_REQUESTS_PER_DAY):
         return
 
+    try:
+        purged = db.purge_expired_room_memory()
+        if purged:
+            log.info("Purged %d expired AI memory item(s)", purged)
+    except Exception:
+        log.exception("AI MEMORY CLEANUP ERROR")
+
     client = GeminiDecisionClient(GEMINI_API_KEY, GEMINI_FLASH_MODEL)
     embedder = GeminiEmbedding(GEMINI_API_KEY, AI_EMBEDDING_DIMENSIONS)
     gate = DecisionEngine(AI_MIN_CONFIDENCE)
