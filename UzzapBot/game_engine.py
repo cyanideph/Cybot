@@ -246,20 +246,42 @@ class GameEngine:
                 "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts} for p in s.players.values()]}
 
     def restore_state(self,state):
-        mode=str(state.get("mode") or state.get("game") or "math")
-        s=Session(str(state["room"]),str(state.get("game") or mode),int(state.get("points") or DEFAULT_POINTS),
+        if not isinstance(state, dict):
+            return None
+
+        # Support the current field and possible legacy naming.
+        room = state.get("room") or state.get("room_id")
+        if not room:
+            print("Skipping persisted game state without a room identifier.")
+            return None
+
+        mode = str(state.get("mode") or state.get("game") or "math")
+        game = str(state.get("game") or mode)
+
+        s=Session(str(room),game,int(state.get("points") or DEFAULT_POINTS),
                   int(state.get("limit") or DEFAULT_LIMIT),bool(state.get("paused")),
                   str(state.get("question") or ""),str(state.get("answer") or ""),
                   str(state.get("clue_text") or ""),int(state.get("number") or 0),
                   mode=mode,endless=bool(state.get("endless")),
-                  current_game=str(state.get("current_game") or state.get("game") or mode))
+                  current_game=str(state.get("current_game") or game or mode))
         s.used_questions=set(state.get("used_questions") or [])
+
         for p in state.get("players") or []:
+            if not isinstance(p, dict):
+                continue
             player=Player(str(p.get("user_id") or ""),str(p.get("username") or ""),str(p.get("nickname") or ""),
                           int(p.get("score") or 0),int(p.get("correct") or 0),int(p.get("attempts") or 0))
             s.players[player.user_id or player.username]=player
-        self.sessions[s.room]=s; return s
+
+        self.sessions[s.room]=s
+        return s
 
     def restore_all(self,states):
-        for state in states: self.restore_state(state)
-        return len(states)
+        restored = 0
+        for state in states or []:
+            try:
+                if self.restore_state(state) is not None:
+                    restored += 1
+            except (TypeError, ValueError, KeyError) as exc:
+                print(f"Skipping invalid persisted game state: {exc}")
+        return restored
