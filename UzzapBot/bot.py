@@ -76,11 +76,21 @@ def parse_legacy_command(text:str):
         "trivia on":"trivia",
         "anime on":"anime",
         "logic on":"logic",
+        "gta opm":"gtaopm",
+        "gta foreign":"gtaforeign",
+        "algebra on":"algebra",
         "game on":"random1",
         "random on":"random1",
     }
     if key in starts: return ["start",starts[key]]
     if key in {"game off","game stop","stop game"}: return ["stop"]
+    if key in {"challenge off","mirror off"}: return ["legacy_noop",key]
+    if key in {"lock"}: return ["pause"]
+    if key in {"unlock"}: return ["resume"]
+    if key in {"version","versi0n"}: return ["version"]
+    if key.startswith("/challenge "): return ["legacy_noop","challenge"]
+    if key.startswith("/wmsg "): return ["legacy_noop","wmsg"]
+    if key in {"/wcbot on","/wcbot off","wcbot on","wcbot off"}: return ["legacy_noop","wcbot"]
     if key in {"help","game help","activate"}: return ["help"]
     if key in {"clue","/clue","sirit","/sirit","hint","/hint"}: return ["clue"]
     if key in {"repost","/repost","rep0st"}: return ["repost"]
@@ -136,6 +146,8 @@ def main()->None:
                         if legacy and sub not in public_legacy and not admin:
                             db.send(room,"[c08]Game controls are admin-only during testing."); continue
                         if sub=="help": db.send(room,HELP)
+                        elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4 compatibility layer on the modern UzzapBot architecture.")
+                        elif sub=="legacy_noop": db.send(room,"[c08]Legacy command recognized. This feature is handled by the modern room architecture.")
                         elif sub=="start":
                             game=args[1] if len(args)>1 else "math"
                             points=int(args[2]) if len(args)>2 else DEFAULT_POINTS
