@@ -125,3 +125,35 @@ def test_generated_math_questions_are_not_repeated():
         e._next(s)
     assert first not in [s.question]
     assert len([x for x in s.used_questions if x.startswith("generated:")]) >= 20
+
+
+def test_random_game_cycle_uses_each_type_once_before_reset():
+    e=GameEngine()
+    s=e.start("cycle-room","randomgta",10,100)
+    first_cycle=[]
+    for _ in range(len(set(e.RANDOM_GTA))):
+        first_cycle.append(e._choose_random_game(s))
+
+    assert set(first_cycle)==set(e.RANDOM_GTA)
+    assert len(first_cycle)==len(set(first_cycle))
+    assert s.cycle_number==1
+
+    next_game=e._choose_random_game(s)
+    assert s.cycle_number==2
+    assert next_game in set(e.RANDOM_GTA)
+    assert s.cycle_games_used==[next_game]
+
+
+def test_random_cycle_state_persists_through_export_restore():
+    e=GameEngine()
+    s=e.start("cycle-state-room","random3",10,100)
+    e._choose_random_game(s)
+    e._choose_random_game(s)
+
+    state=e.export_state("cycle-state-room")
+    restored=GameEngine()
+    s2=restored.restore_state(state)
+
+    assert s2.cycle_number==s.cycle_number
+    assert s2.cycle_games_used==s.cycle_games_used
+    assert s2.recent_games==s.recent_games
