@@ -8,61 +8,38 @@ from game_engine import GameEngine
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
 
-HELP="""[c04]╔══════════════════════════════╗
-[c14]          UZZAPBOT
-[c04]╚══════════════════════════════╝
-[c09]One official command per action. No aliases.
+HELP="""[c16]════ [c25]GAMEBOT [c15]v4.5 [c16]════
+[c15]One official command per action. No aliases.
 
-[c02]━━ PLAYER COMMANDS ━━
-[c16]/HELP[c09] — Show this help
-[c16]/JOIN[c09] — Join the active game before answering
-[c16]/LEAVE[c09] — Leave the current game
-[c16]/PLAYERS[c09] — Show players who joined the game
-[c16]/CLUE[c09] — Get a clue
-[c16]/REPOST[c09] — Repost the current question
-[c16]/STATUS[c09] — Show current game status
-[c16]/SCORE[c09] — Show your score
-[c16]/LEADERBOARD[c09] — Show leaderboard
-[c16]/VERSION[c09] — Show bot version
+[c10]━━ PLAYER ━━━━━━━━━━━━━━━
+[c16]/HELP[c15] — help        [c16]/JOIN[c15] — join game
+[c16]/LEAVE[c15] — leave      [c16]/PLAYERS[c15] — who joined
+[c16]/CLUE[c15] — clue        [c16]/REPOST[c15] — repost
+[c16]/STATUS[c15] — status    [c16]/SCORE[c15] — score
+[c16]/LEADERBOARD[c15] — ranks [c16]/VERSION[c15] — version
 
-[c14]━━ PLAYER GAME COMMANDS ━━
-[c06]/TT ON[c09] — Start Text Twist
-[c06]/MATH ON[c09] — Start Math
-[c06]/TRIVIA ON[c09] — Start Trivia
-[c06]/ANIME ON[c09] — Start Anime
-[c06]/LOGIC ON[c09] — Start Logic
-[c06]/ALGEBRA ON[c09] — Start Algebra
-[c06]/PH ON[c09] — Start Philippine game
-[c06]/RANDOM QUIZ1[c09] — Start Random Quiz 1
-[c06]/RANDOM QUIZ2[c09] — Start Random Quiz 2
-[c06]/RANDOM QUIZ3[c09] — Start Random Quiz 3
-[c06]/RANDOM GTA[c09] — Start Random GTA
-[c06]/GTA OPM[c09] — Start OPM GTA
-[c06]/GTA FOREIGN[c09] — Start Foreign GTA
-[c06]/ENGLISH WORDHUNT[c09] — Start English Wordhunt
-[c06]/TAGALOG WORDHUNT[c09] — Start Tagalog Wordhunt
+[c04]━━ GAMES ━━━━━━━━━━━━━━━━
+[c04]/TT ON[c15] — twist         [c04]/MATH ON[c15] — math
+[c04]/TRIVIA ON[c15] — trivia    [c04]/ANIME ON[c15] — anime
+[c04]/LOGIC ON[c15] — logic      [c04]/ALGEBRA ON[c15] — algebra
+[c04]/PH ON[c15] — pinoy henyo   [c04]/RANDOM QUIZ1[c15] — mix1
+[c04]/RANDOM QUIZ2[c15] — mix2   [c04]/RANDOM QUIZ3[c15] — mix3
+[c04]/RANDOM GTA[c15] — gta      [c04]/GTA OPM[c15] — opm
+[c04]/GTA FOREIGN[c15] — foreign [c04]/ENGLISH WORDHUNT[c15] — eng
+[c04]/TAGALOG WORDHUNT[c15] — tag
 
-[c03]━━ ADMIN COMMANDS ━━
-[c16]/STOP[c09] — Stop current game
-[c16]/PAUSE[c09] — Pause current game
-[c16]/RESUME[c09] — Resume current game
-[c16]/NEXT[c09] — Next question
-[c16]/REVEAL[c09] — Reveal answer
-[c16]/ACTIVATE[c09] — Activate room
-[c16]/LOCK[c09] — Lock game input
-[c16]/UNLOCK[c09] — Unlock game input
-[c16]/WCBOT ON[c09] — Enable welcome bot
-[c16]/WCBOT OFF[c09] — Disable welcome bot
-[c16]/WMSG <message>[c09] — Set welcome message
-[c16]/CHALLENGE <room>[c09] — Set challenge room
-[c16]/CHALLENGE OFF[c09] — Disable challenge/mirror
+[c20]━━ ADMIN ━━━━━━━━━━━━━━━━━
+[c20]/STOP[c15] — stop           [c20]/PAUSE[c15] — pause
+[c20]/RESUME[c15] — resume       [c20]/NEXT[c15] — next
+[c20]/REVEAL[c15] — answer       [c20]/ACTIVATE[c15] — room
+[c20]/LOCK[c15] — lock           [c20]/UNLOCK[c15] — unlock
+[c20]/WCBOT ON[c15] — wc on      [c20]/WCBOT OFF[c15] — wc off
+[c20]/WMSG <msg>[c15] — set msg  [c20]/CHALLENGE OFF[c15] — off
+[c20]/CHALLENGE <room>[c15] — mirror to room
 
-[c09]🎮 To play, use /JOIN first.
-[c09]Only joined players' normal messages are checked as game answers.
-[c09]Users who have not joined can chat normally without affecting the game.
-[c09]Use /LEAVE to stop playing and /PLAYERS to see who is playing.
-[c09]Invalid or old commands are not accepted.
-[c14]UzzapBot Game Core 4.5[c09]."""
+[c01]🎮 /JOIN to play · normal chat won't affect the game
+[c01]/LEAVE to quit · /PLAYERS lists who's playing
+[c25]Cybot Game Core 4.5"""
 
 def is_admin(msg:dict)->bool:
     # Authorization is based only on immutable Supabase Auth user IDs.
@@ -250,7 +227,7 @@ def main()->None:
                         game=args[1]
                         games.start(room,game,DEFAULT_POINTS,DEFAULT_LIMIT,False)
                         persist(db,games,room); db.send(room,games.repost(room))
-                        db.send(room,"[c09]New game started\u2014previous players must /JOIN again to play.")
+                        db.send(room,"[c09]New game started—previous players must /JOIN again to play.")
                     elif sub=="stop":
                         if games.get(room):
                             games.stop(room); db.delete_game_state(room); db.send(room,"[c08]Game stopped.")
