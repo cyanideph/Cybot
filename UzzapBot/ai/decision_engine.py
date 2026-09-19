@@ -21,8 +21,13 @@ class DecisionEngine:
         if result.get("should_intervene") is not True:
             return {"allowed": False, "reason": "ai_declined", "game": None}
         game = match_topic(result)
+        response = str(result.get("response") or "").strip()
+        if len(response) > 500:
+            return {"allowed": False, "reason": "response_too_long", "game": None}
+        if response.startswith("/"):
+            return {"allowed": False, "reason": "command_like_response", "game": None}
         if result.get("action") == "suggest_game" and game:
-            return {"allowed": True, "reason": "validated_game_suggestion", "game": game}
+            return {"allowed": True, "reason": "validated_game_suggestion", "game": game, "response": response}
         if result.get("action") == "chat":
-            return {"allowed": True, "reason": "validated_chat", "game": None}
+            return {"allowed": True, "reason": "validated_chat", "game": None, "response": response}
         return {"allowed": False, "reason": "unsupported_action", "game": None}
