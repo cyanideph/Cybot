@@ -273,7 +273,7 @@ def main()->None:
                         s=games.get(room)
                         if not s: db.send(room,"[c08]No active game.")
                         else:
-                            db.send(room,f"[c0c]The Correct Answer is: [c03]{s.answer}")
+                            db.send(room,f"[c03]The Correct Answer is: [c03]{s.answer}")
                             db.send(room,games.next_question(s)); persist(db,games,room)
                     elif sub=="status": db.send(room,games.status(room))
                     elif sub=="score": db.send(room,games.score_text(room,uid))
