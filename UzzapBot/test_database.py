@@ -134,6 +134,7 @@ def message(message_id, sender="alice", sender_id="user-1", body="hello"):
 
 
 def test_poll_messages_drains_more_than_one_page_without_skipping():
+    monkeypatch.setattr("database.BOT_SENDER_ID", "bot-uuid")
     client = FakeClient()
     client.messages = [message(i) for i in range(1, 106)]
     client.claimable_ids = set(range(1, 106))
@@ -147,7 +148,7 @@ def test_poll_messages_drains_more_than_one_page_without_skipping():
     assert [call[1]["p_message_id"] for call in client.rpc_calls] == list(range(1, 106))
 
 
-def test_poll_messages_ignores_bot_messages():
+def test_poll_messages_ignores_bot_messages(monkeypatch):
     client = FakeClient()
     client.messages = [
         message(1, sender="alice", sender_id="user-1"),
