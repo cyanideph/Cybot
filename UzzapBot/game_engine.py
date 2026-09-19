@@ -13,6 +13,7 @@ class Player:
     score: int = 0
     correct: int = 0
     attempts: int = 0
+    clues_used: int = 0
 
 @dataclass
 class Session:
@@ -24,6 +25,7 @@ class Session:
     question: str = ""
     answer: str = ""
     clue_text: str = ""
+    clue_level: int = 0
     number: int = 0
     players: dict[str, Player] = field(default_factory=dict)
     used_questions: set[str] = field(default_factory=set)
@@ -124,7 +126,7 @@ class GameEngine:
     def stop(self,room): self.sessions.pop(room,None)
 
     def _build_question(self,s,game):
-        s.current_game=game; s.clue_text=""
+        s.current_game=game; s.clue_text=""; s.clue_level=0
         if game in {"add","minus","multiply","add1","minus1","multiply1"}:
             if game in {"add","minus","add1","minus1"}: a,b=random.randint(0,1000),random.randint(0,1000)
             else: a,b=random.randint(1,100 if game=="multiply" else 10),random.randint(1,10 if game=="multiply" else 100)
@@ -214,16 +216,33 @@ class GameEngine:
             return True,response
         return False,""
 
-    def clue(self,room):
+    def clue(self,room,uid=None):
         s=self.sessions.get(room)
         if not s: return "[c08]No active game."
         if not s.answer: return "[c08]No clue available."
-        reveal=max(1,len(re.sub(r"\s+","",s.answer))//3); seen=0; out=[]
+        if s.clue_level >= 3:
+            return "[c12]Maximum clues reached. Try your answer!"
+
+        # Progressive clues reveal 1/3, 1/2, then 2/3 of the answer.
+        s.clue_level += 1
+        compact_len=len(re.sub(r"\\s+","",s.answer))
+        reveal_ratio={1:1/3,2:1/2,3:2/3}[s.clue_level]
+        reveal=max(1,int(compact_len*reveal_ratio))
+        seen=0; out=[]
         for ch in s.answer:
-            if ch.isspace() or not ch.isalnum(): out.append(ch)
-            elif seen<reveal: out.append(ch); seen+=1
-            else: out.append("_")
-        s.clue_text="".join(out); return f"[c12]{random.choice(self.CLUE_PREFIXES)}: {s.clue_text}"
+            if ch.isspace() or not ch.isalnum():
+                out.append(ch)
+            elif seen<reveal:
+                out.append(ch); seen+=1
+            else:
+                out.append("_")
+        s.clue_text="".join(out)
+        if uid:
+            p=s.players.get(uid)
+            if p:
+                p.clues_used += 1
+        prefix=random.choice(self.CLUE_PREFIXES)
+        return f"[c12]{prefix} {s.clue_level}/3: {s.clue_text}"
 
     def repost(self,room):
         s=self.sessions.get(room)
@@ -255,8 +274,8 @@ class GameEngine:
         return {"room":s.room,"game":s.game,"mode":s.mode,"current_game":s.current_game,
                 "points":s.points,"limit":s.limit,"endless":s.endless,"paused":s.paused,
                 "question":s.question,"answer":s.answer,"clue_text":s.clue_text,"number":s.number,
-                "used_questions":list(s.used_questions),
-                "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts} for p in s.players.values()]}
+                "used_questions":list(s.used_questions), "clue_level":s.clue_level,
+                "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts,"clues_used":p.clues_used} for p in s.players.values()]}
 
     def restore_state(self,state):
         if not isinstance(state, dict):
@@ -274,7 +293,7 @@ class GameEngine:
         s=Session(str(room),game,int(state.get("points") or DEFAULT_POINTS),
                   int(state.get("limit") or DEFAULT_LIMIT),bool(state.get("paused")),
                   str(state.get("question") or ""),str(state.get("answer") or ""),
-                  str(state.get("clue_text") or ""),int(state.get("number") or 0),
+                  str(state.get("clue_text") or ""),int(state.get("clue_level") or 0),int(state.get("number") or 0),
                   mode=mode,endless=bool(state.get("endless")),
                   current_game=str(state.get("current_game") or game or mode))
         s.used_questions=set(state.get("used_questions") or [])
@@ -283,7 +302,7 @@ class GameEngine:
             if not isinstance(p, dict):
                 continue
             player=Player(str(p.get("user_id") or ""),str(p.get("username") or ""),str(p.get("nickname") or ""),
-                          int(p.get("score") or 0),int(p.get("correct") or 0),int(p.get("attempts") or 0))
+                          int(p.get("score") or 0),int(p.get("correct") or 0),int(p.get("attempts") or 0),int(p.get("clues_used") or 0))
             s.players[player.user_id or player.username]=player
 
         self.sessions[s.room]=s
