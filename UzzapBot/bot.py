@@ -1,6 +1,6 @@
 """Pydroid 3 entry point for UzzapBot."""
 from __future__ import annotations
-import logging,time
+import logging,time,json
 from config import (
     BOT_NAME, ADMIN_IDS, POLL_SECONDS, DEFAULT_POINTS, DEFAULT_LIMIT, validate,
     AI_ENABLED, AI_IDLE_MINUTES, AI_INACTIVE_MINUTES, AI_COOLDOWN_MINUTES,
@@ -20,6 +20,32 @@ from ai.rollout import evaluate_rollout, canary_selected
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
+
+_AI_DIAGNOSTIC_LAST: dict[str, str] = {}
+
+def record_ai_diagnostic(
+    db: Database,
+    room: str,
+    stage: str,
+    reason: str | None = None,
+    details: dict | None = None,
+    force: bool = False,
+) -> None:
+    """Persist the latest non-secret AI gate reached, without poll-loop spam."""
+    payload = details or {}
+    signature = json.dumps(
+        {"stage": stage, "reason": reason, "details": payload},
+        sort_keys=True,
+        default=str,
+    )
+    if not force and _AI_DIAGNOSTIC_LAST.get(room) == signature:
+        return
+    _AI_DIAGNOSTIC_LAST[room] = signature
+    try:
+        db.save_ai_diagnostic(room, stage, reason, payload)
+    except Exception:
+        log.exception('AI DIAGNOSTIC WRITE ERROR room="%s"', room)
+
 
 HELP="""[c04]╔══════════════════════════════╗
 [c14]          UZZAPBOT
@@ -170,6 +196,20 @@ def parse_command(text:str):
 
 def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
     """Run optional AI analysis only for eligible quiet rooms."""
+    record_ai_diagnostic(db, "__GLOBAL__", "config",
+        None if AI_ENABLED and GEMINI_API_KEY else "global_ai_gate",
+        {
+            "ai_enabled": bool(AI_ENABLED),
+            "gemini_key_configured": bool(GEMINI_API_KEY),
+            "ai_idle_minutes": AI_IDLE_MINUTES,
+            "ai_inactive_minutes": AI_INACTIVE_MINUTES,
+            "ai_cooldown_minutes": AI_COOLDOWN_MINUTES,
+            "ai_live_enabled": bool(AI_LIVE_ENABLED),
+            "ai_dry_run": bool(AI_DRY_RUN),
+            "rollout_stage": AI_ROLLOUT_STAGE,
+            "canary_percent": AI_CANARY_PERCENT,
+        },
+    )
     if not AI_ENABLED or not GEMINI_API_KEY:
         return
 
@@ -187,12 +227,22 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
     # Phase 11 is an enforced runtime gate. Unsafe or inconsistent live
     # configuration fails closed before provider calls or message sends.
     if AI_LIVE_ENABLED and not AI_DRY_RUN and not rollout["ready"]:
+        record_ai_diagnostic(db, "__GLOBAL__", "rollout_blocked",
+            ",".join(rollout["findings"]) or "rollout_not_ready",
+            {"findings": rollout["findings"]})
         log.error("AI LIVE ROLLOUT BLOCKED: %s", ",".join(rollout["findings"]))
         return
+    record_ai_diagnostic(db, "__GLOBAL__", "rollout_passed", None,
+        {"ready": bool(rollout["ready"]), "findings": rollout["findings"]})
 
     global_usage = db.ai_usage()
     if not request_budget_available(global_usage, AI_MAX_REQUESTS_PER_DAY):
+        record_ai_diagnostic(db, "__GLOBAL__", "global_budget_blocked",
+            "request_budget",
+            {"usage": global_usage, "max_requests_per_day": AI_MAX_REQUESTS_PER_DAY})
         return
+    record_ai_diagnostic(db, "__GLOBAL__", "global_budget_passed", None,
+        {"usage": global_usage, "max_requests_per_day": AI_MAX_REQUESTS_PER_DAY})
 
     try:
         purged = db.purge_expired_room_memory()
@@ -213,6 +263,8 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
         try:
             room_settings = db.get_room_settings(room_name)
             if not bool(room_settings.get("ai_enabled", False)):
+                record_ai_diagnostic(db, room_name, "room_opt_in_blocked",
+                    "room_ai_disabled", {"room_ai_enabled": False})
                 continue
             activity.get_or_create(
                 room_name,
@@ -225,20 +277,45 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
                     "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
                 },
             )
-        except Exception:
+        except Exception as exc:
+            record_ai_diagnostic(db, room_name, "room_settings_error", str(exc))
             log.exception('AI ROOM GATE ERROR room="%s"', room_name)
             continue
 
         eligibility = activity.eligibility(room_name)
         if not eligibility["eligible"] or eligibility["state"] not in {"QUIET", "INACTIVE"}:
+            record_ai_diagnostic(
+                db, room_name, "idle_gate_blocked",
+                ",".join(eligibility.get("reasons") or []) or "not_quiet_or_inactive",
+                {
+                    "eligibility": eligibility,
+                    "runtime_idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+                    "runtime_inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+                    "runtime_cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+                },
+            )
             continue
+        record_ai_diagnostic(db, room_name, "idle_gate_passed", None, {
+            "eligibility": eligibility,
+            "runtime_idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+            "runtime_inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+            "runtime_cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+        })
 
         usage = db.ai_usage(room_name)
         if not response_budget_available(usage, AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY):
+            record_ai_diagnostic(db, room_name, "room_budget_blocked",
+                "response_budget", {"usage": usage,
+                "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+                "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY})
             continue
+        record_ai_diagnostic(db, room_name, "room_budget_passed", None,
+            {"usage": usage})
 
         recent = db.recent_room_messages(room_name, 20)
         if not recent:
+            record_ai_diagnostic(db, room_name, "no_recent_messages",
+                "no_human_messages")
             activity.get_or_create(room_name).record_ai_analysis()
             db.save_room_activity(activity.snapshot(room_name))
             continue
@@ -262,11 +339,17 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             room_name, recent, summary, semantic_memory or stored_memory
         )
         conversation = context.prompt_text()
+        record_ai_diagnostic(db, room_name, "provider_call", "gemini_decide",
+            {"input_chars": len(conversation), "model": GEMINI_FLASH_MODEL},
+            force=True)
         result = client.decide(conversation)
         activity.get_or_create(room_name).record_ai_analysis()
         db.save_room_activity(activity.snapshot(room_name))
 
         if not result.ok:
+            record_ai_diagnostic(db, room_name, "provider_error", result.error,
+                {"input_chars": len(conversation), "model": GEMINI_FLASH_MODEL},
+                force=True)
             db.save_ai_event({
                 "room_name": room_name,
                 "event_type": "decision_error",
@@ -278,6 +361,14 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
 
         decision = result.decision or {}
         validated = gate.validate(decision)
+        record_ai_diagnostic(db, room_name, "decision_validated",
+            validated.get("reason"), {
+                "allowed": bool(validated.get("allowed")),
+                "topic": decision.get("topic"),
+                "confidence": decision.get("confidence"),
+                "action": decision.get("action"),
+                "game": validated.get("game"),
+            }, force=True)
         db.save_ai_event({
             "room_name": room_name,
             "event_type": "decision",
@@ -335,7 +426,13 @@ def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
             if response_budget_available(
                 latest_usage, AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY
             ):
+                record_ai_diagnostic(db, room_name, "response_sent",
+                    "live_response", {"latest_usage": latest_usage}, force=True)
                 db.send(room_name, validated["response"])
+            else:
+                record_ai_diagnostic(db, room_name, "response_budget_blocked",
+                    "final_response_budget", {"latest_usage": latest_usage},
+                    force=True)
                 db.save_ai_event({
                     "room_name": room_name,
                     "event_type": "response_sent",
