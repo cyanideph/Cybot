@@ -55,7 +55,7 @@
 59y,Q.Which element has the lowest boiling point?,Helium
 60y,Q.What is the branch of mechanics that deals with the motion and action of forces?,Dynamics
 61y,Q.What name is given to the time of the year when night and day are of equal lengths?,Equinox
-62,On which river does Baghdad stands?,Tigris River
+62y,Q.On which river does Baghdad stands?,Tigris River
 63y,Q.Who was the roman emperor when Jesus Christ was crucified?,Tiberius
 64y,Q.Which are the only birds able to fly backwards?,Hummingbirds
 65y,Q.What is the highest order of angels in the celestial hiarchy?,Seraphim
@@ -69,7 +69,7 @@
 73y,Q.What is the moon of the minor planet Pluto?,Charon
 74y,Q.What is the 1st city established in Philippines?,Cebu
 75y,Q.What do you call a castrated rooster?,Capon
-76,What is a word that feeds on blood?,Leech
+76y,Q.What is a word that feeds on blood?,Leech
 77y,Q.Who is the youngest billionaire in the world?,Mark Zuckerberg
 1xx,Q.What do you call a group of antelope?,Herd
 2xx,Q.What do you call a group of ant?,Army
@@ -770,7 +770,6 @@
 73xy,Q.What is the only country to have a flag which consists of only one colour?,Libya
 74xy,Q.If you were born on Halloween what star sign would you be?,Scorpio
 75xy,Q.What is the birthstone for the month of February?,Amethyst
-76x,Q.How many American cents make up a dime?,10
 77xy,Q.From which country does the game of mah-jong originate?,China
 78xy,Q.Which breed of dog has breeds called Welsh Scottish and Irish?,Terrier
 79xy,Q.Who was the Roman God of War?,Mars
@@ -786,7 +785,6 @@
 89xy,Q.What is the third letter of the Greek alphabet?,Gamma
 90xy,Q.Diamond is the birthstone for which month?,April
 91xy,Q.What does a numismatist collect?,Coins
-92x,Q.What popular drink was originally called `Brad`s Drink`?,Pepsi
 93xy,Q.What is the Spanish name for a Bullfighter?,Matador
 94xy,Q.What is photophobia a fear of?,Light
 95xy,Q.In Greek mythology what was Medusa`s hair made of?,Snakes
