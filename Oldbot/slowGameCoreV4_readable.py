@@ -34,13 +34,48 @@ import base64
 import os
 import sysinfo
 import audio
+
+# ---------------------------------------------------------------------------
+# LEGACY GAME STATE
+# ---------------------------------------------------------------------------
+# These names are retained for now because they are shared by many routines.
+# Readability mapping:
+#   roombot       current game room
+#   challenge     secondary/challenge room
+#   word1/word2   current question/answer-related state
+#   clue          current clue text
+#   p / ps        parallel player-name / player-score lists
+#   postcount     number of outbound posts since the last keepalive
+#   wcbot1        welcome-bot switch
+#   lockbotroom   room-lock state
+#   invadeon      invasion mode switch
+#   twistswitch   twist mode switch
+#   louiselock    legacy game lock state
+#   marklouise*   historical game generators (renamed below)
+#   marky* / ub*  generated protocol/message identifiers
+#   gmcount/gm2..gm7 legacy game counters/state slots
+#
+# ---------------------------------------------------------------------------
+# KNOWN LEGACY ISSUES — DOCUMENTED, NOT FIXED IN STAGE 1
+# ---------------------------------------------------------------------------
+# 1. Several functions contain global declarations after references or
+#    assignments to the same name. Modern Python requires the declaration to
+#    precede those uses in the function body.
+# 2. The source targets Symbian/Python-2-era APIs.
+# 3. Some names are reused for different purposes.
+# 4. Some file-handle close calls appear to reference the wrong variable.
+# 5. Socket/XML code targets the historical Uzzap/Kolipri service.
+#
+# These are deliberately documented rather than silently corrected.
+# See Python scope rules in the official documentation.
+
 l = '####################'
 l = 'Please do not remove this script if you want to edit this program.'
 l = 'You must give credits for their works.'
 l = 'This are the people who contributed for the game! E.G. Trivia Questionnaires, GTA, REBUS, ETC...'
 l = '~~~~~~~~~~~~~~~~~~~~~~~~'
 special = ('+MSTR|+PIECE+', 'VENOM|Chiz', 'TRiBaL.oNe', 'PARK|"YUIE', '}PARK{"GHABZ', 'Kickbutt', 'MSTR.C', 'Pistol', '+PH+ZOIDZ', '</dadahush>', '[N]E+AKARI', 'B6|YAM')
-show_special_thanks = random.choice(special)
+special_thanks_name = random.choice(special)
 l = '~~~~~~~~~~~~~~~~~~~~~~~~'
 l = 'If you want to contribute for this program, you can send to us Trivia Questionnaires, GTA, Rebus, ETC.'
 l = 'You can send it via MMS to 09194015811'
@@ -74,24 +109,24 @@ ShakuganNoShana = u'e:\\Python\\Blaze.mp3'
 musicitems = (RieTanaka, Naruto, Bloodplus, FullMetalPanic, ShakuganNoShana)
 music = random.choice(musicitems)
 antimark = ''
-tit = 'GAME CORE 4.5'
-title = tit
-path = u'e:\\Python\\'
-fles3 = u'e:\\Python\\words.txt'
-O3 = open(fles3, 'r')
-r3 = O3.read().split('\n')
-O3.close()
-fles4 = u'e:\\Python\\salita.txt'
-O4 = open(fles4, 'r')
-r4 = O4.read().split('\n')
-O3.close()
+GAME_TITLE = 'GAME CORE 4.5'
+APP_TITLE = GAME_TITLE
+LEGACY_DATA_PATH = u'e:\\Python\\'
+ENGLISH_WORD_FILE = u'e:\\Python\\words.txt'
+english_word_file = open(ENGLISH_WORD_FILE, 'r')
+english_words = english_word_file.read().split('\n')
+english_word_file.close()
+TAGALOG_WORD_FILE = u'e:\\Python\\salita.txt'
+tagalog_word_file = open(TAGALOG_WORD_FILE, 'r')
+tagalog_words = tagalog_word_file.read().split('\n')
+english_word_file.close()
 challengelouise = 'off'
 def get_english_word(string):
-    return r3[string]
+    return english_words[string]
 
 
 def get_tagalog_word(string):
-    return r4[string]
+    return tagalog_words[string]
 
 
 markxxxxlouise = ''
@@ -103,11 +138,11 @@ random3 = ('generate_algebra_1', 'generate_algebra_2', 'generate_algebra_3', 'ad
 randomgta = ('generate_gta_foreign_question', 'generate_gta_opm_question')
 
 mathx = ('add', 'minus', 'multiply', 'add1', 'minus1', 'multiply1')
-tit = 'GAME CORE 4.5'
+GAME_TITLE = 'GAME CORE 4.5'
 appuifw.app.screen = 'normal'
 round = appuifw.Text()
 appuifw.app.body = round
-appuifw.app.title = (u'' + tit + '')
+appuifw.app.APP_TITLE = (u'' + GAME_TITLE + '')
 round.color = 405
 round.font = (u'LatinBold12', 20, None)
 round.color = 16711680
@@ -237,6 +272,10 @@ tekert1 = '<iq type="get" id="CITCR_#ID#" to="" amaz-protocol="chat"><invite roo
 tekert2 = tekert1.replace('#ID#', str(random.randint(1, 9999)))
 jid = ''
 password = ''
+
+# ===========================================================================
+# LOGIN / SESSION
+# ===========================================================================
 def login_to_uzzap():
     if key == 'key' : 
         account = appuifw.multi_query(u'LOGIN UZZAP ID\n(small letters only):', u'Password:')
@@ -274,6 +313,10 @@ def login_to_uzzap():
     global jid, password
 
 
+
+# ===========================================================================
+# ROOM MANAGEMENT / MESSAGING
+# ===========================================================================
 def join_room():
     names = appuifw.multi_query(u'Room Name:\n(e.g. Gamers 32)', u'Nickname: \n(MAX of 12 characters)')
     first, last = names
@@ -345,7 +388,7 @@ def receive_packets():
     rn = roombot
     countpost1 = 0
     garbagecollection = s1.recv(1024)
-    if  not os.path.exists(u'e:\\Python\\summonnight.pyc') : 
+    if  not os.LEGACY_DATA_PATH.exists(u'e:\\Python\\summonnight.pyc') : 
         os.abort()
     while True : 
         data = s1.recv(1024)
@@ -497,8 +540,7 @@ def receive_packets():
                             send_clue(word1)
                             repost_gta_foreign()
                         else : 
-                            send_clue(word1)
-                            repost_gta_foreign()
+                            send_clue(word1)                            repost_gta_foreign()
                     if marklouise == 'generate_gta_opm_question' : 
                         if len(louisemark) >= 12 : 
                             send_clue(word1)
@@ -997,8 +1039,7 @@ def receive_packets():
                 generate_word_hunt_question()
                 countpost1 = 0
             elif Cmess.lower().find('tt on') >= 0 and Cfrom == masternick : 
-                louisescore = 10
-                game2 = ('[c00 TEXTTWIST  ACTIVATED!!! [0cc \n by: ' + Cfrom)
+                louisescore = 10                game2 = ('[c00 TEXTTWIST  ACTIVATED!!! [0cc \n by: ' + Cfrom)
                 markxxlouise = ('[c00 RACE TO ' + str(louiselimit) + ' POINTS [c0c \n=> it`s show_about_menu to begin...')
                 markxxxxlouise = 'texttwist'
                 louiselock = 'unlock'
@@ -1497,8 +1538,7 @@ def receive_packets():
                 markxxxxlouise = 'anime'
                 louiselock = 'unlock'
                 marky = xmlmark.replace('#ROOM#', roombot)
-                louisey = marky.replace('#ROOMx#', challenge)
-                xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
+                louisey = marky.replace('#ROOMx#', challenge)                xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
                 markyx = xmllouise.replace('#IDx#', str(random.randint(1, 999)))
                 post3x = markyx.replace('#MESS#', game2)
                 post2x = post3x.replace('#MESSx#', game2)
@@ -1759,6 +1799,10 @@ def game_summon_night():
     global louiselimit
 
 
+
+# ===========================================================================
+# MATH / WORD-HUNT GAMES
+# ===========================================================================
 def generate_addition_question():
     marklouise = 'add'
     a1 = random.randint(0, 1000)
@@ -1997,8 +2041,7 @@ def repost_current_question():
 
 
 def repost_current_question_with_hint():
-    marky = xmlmark.replace('#ROOM#', roombot)
-    louisey = marky.replace('#ROOMx#', challenge)
+    marky = xmlmark.replace('#ROOM#', roombot)    louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
     markyx = xmllouise.replace('#IDx#', str(random.randint(1, 999)))
     ttq = (jeaneth + str(louisescore) + 'pts]' + '\n[567     HiNT: [0C0 ' + clue)
@@ -2498,7 +2541,6 @@ def generate_word_hunt_variant():
     word_hunt_answer_check()
     global summonnightx, markloua, markloub, marklouc, markloud, markloue, marklouf, markloug, marklouh, markloui, marklouj, marklouk, markloul, markloum, markloun, marklouo, markloup, marklouq, marklour, marklous, marklout, marklouu, marklouv, marklouw, markloux, marklouy, marklouz, marklouaw, markloubw, markloucw, markloudw, marklouew, markloufw, marklougw, marklouhw, marklouiw, markloujw, markloukw, markloulw, markloumw, marklounw, marklouow, markloupw, marklouqw, marklourw, marklousw, markloutw, marklouuw, marklouvw, marklouww, marklouxw, marklouyw, marklouzw, marklouaa, marklouba, marklouca, marklouda, marklouea, markloufa, marklouga, marklouha, marklouia, marklouja
 
-
 marktrap1 = ''
 marktrap2 = ''
 def word_hunt_answer_check():
@@ -2598,6 +2640,10 @@ data = []
 markquest = ''
 qcount = 0
 louiselow = 'Mark Louise'
+
+# ===========================================================================
+# TRIVIA / GTA / ANIME
+# ===========================================================================
 def generate_trivia_question():
     marklouise = 'generate_trivia_question'
     from string import strip as strip
@@ -2856,6 +2902,10 @@ def clue_anime_trivia():
     global postcount
 
 
+
+# ===========================================================================
+# RANDOM GAME SELECTION
+# ===========================================================================
 def select_random_game():
 
     if marklouise == 'generate_algebra_1' : 
@@ -2966,6 +3016,10 @@ logicread = generate_logic_question.readlines()
 generate_logic_question.close()
 logicdecoy = []
 
+
+# ===========================================================================
+# LOGIC / ALGEBRA
+# ===========================================================================
 def generate_logic_question():
     marklouise = 'generate_logic_question'
     from string import strip as strip
@@ -2997,8 +3051,7 @@ def generate_logic_question():
                     pass
                 elif i >= (len(logicdecoy) - 1) : 
                     if len(markquest) >= 101 : 
-                       generate_logic_question()
-                    else : 
+                       generate_logic_question()                    else : 
                         logicdecoy[len(logicdecoy) : 0] = [rd]
                         qcount = (qcount + 1)
                         repost_trivia()
