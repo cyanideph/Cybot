@@ -87,6 +87,7 @@ marklock = 0
 faces = ('[#/1 ', '[#/1 ', '[#/1 ', '[#/2 ', '[#/3 ', '[#/4 ', '[#/4 ', '[#/4 ', '[#/5 ', '[#/6 ', '[#/4 ', '[#/7 ', '[#/8 ', '[#/9 ', '[#/0 ')
 spybotroom = ''
 def repost_question_with_clue():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -98,7 +99,6 @@ def repost_question_with_clue():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 RieTanaka = u'e:\\Python\\Shizuka na Yoru ni C.E. 73.mp3'
@@ -277,6 +277,7 @@ password = ''
 # LOGIN / SESSION
 # ===========================================================================
 def login_to_uzzap():
+    global jid, password
     if key == 'key' : 
         account = appuifw.multi_query(u'LOGIN UZZAP ID\n(small letters only):', u'Password:')
         jid, password = account
@@ -310,7 +311,6 @@ def login_to_uzzap():
             s1.send(tekert3)
             rpackets2 = s1.recv(1024)
         pass
-    global jid, password
 
 
 
@@ -318,6 +318,7 @@ def login_to_uzzap():
 # ROOM MANAGEMENT / MESSAGING
 # ===========================================================================
 def join_room():
+    global last, lastdetermine, roombot
     names = appuifw.multi_query(u'Room Name:\n(e.g. Gamers 32)', u'Nickname: \n(MAX of 12 characters)')
     first, last = names
     levjoin = '<iq type="get" id="LCR_1275557645_12" to="conference@demo.kolipri.com/amazilia" amaz-protocol="chat"><chatuser room="#ROOM#" type="unavailable" /></iq><iq type="get" id="******_9" to="conference@demo.kolipri.com/amazilia" amaz-protocol="chat"><chatuser room="#ROOM#" nick="#NICK#" /></iq>'
@@ -340,7 +341,6 @@ def join_room():
     else : 
         round.add((u'\n++  BASIC COMMANDS:  ++\nACTIVATE\nRANDOM QUIZ1 = Math,TT,WH\nRANDOM QUIZ2 =  with Trivia&GTA\nRANDOM QUIZ3 = all in one!\nTRIVIA ON\nGAME OFF\n=> Please check "HELP" for more info.\n\n>> You have Joined ' + first + ' as:\n >>>   ' + lastdetermine + '   <<<\n'))
         activate_game_session()
-    global last, lastdetermine, roombot
 
 
 mark = ''
@@ -372,6 +372,7 @@ def post_message_prompt():
 
 louise = ''
 def change_nickname():
+    global last, lastdetermine
     last = appuifw.query(u'MaiN Nickname \n(MAX 12 characters)', 'text')
     lastdetermine = last
     if len(last) > 12 : 
@@ -379,10 +380,11 @@ def change_nickname():
         last = 'GameCore 4.5'
     else : 
         round.add((u'\n>> Your Main NickName is: ' + last))
-    global last, lastdetermine
 
 
 def receive_packets():
+    global mirrors
+    global stopplad, Cmess, challenge, postcount, wcmeseg, wcbot1, twistswitch, louiselock, louisescore, marklock, marklouise, p, ps, markxxxxlouise, antimark
     round.add(u'\n\n>> PACKETS SUCCESSFULLY IN')
     stopplad = 'no'
     rn = roombot
@@ -760,7 +762,6 @@ def receive_packets():
                 postcount = (postcount + 1)
                 round.add(u'\n>>mirror on')
                 mirrors = 'yes'
-    global mirrors
                 activate_game_session()
 
 
@@ -1692,12 +1693,12 @@ def receive_packets():
             passx = 'yeah'
         else : 
             passx = 'yeah'
-    global stopplad, Cmess, challenge, postcount, wcmeseg, wcbot1, twistswitch, louiselock, louisescore, marklock, marklouise, p, ps, markxxxxlouise, antimark
 
 
 pointcount = 0
 facemark = ''
 def add_player_if_missing(Cfrom):
+    global facemark, postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -1733,7 +1734,6 @@ def add_player_if_missing(Cfrom):
                     send_keepalive_if_needed()
                 pass
         pass
-    global facemark, postcount
 
 
 word3 = ''
@@ -1746,27 +1746,27 @@ marklouise = ''
 markxlouise = '[c00 To start a NEW GAME\njust type => [c0c GAME [c0c ON !!!'
 defeatmark = '[C00 It does`nt matter how powerful you are if you can`t defeat me! :DD'
 def game_math_add():
+    global louiselimit
     louiselimit = 100
     round.add(u'\n>> GAME SCORE LIMIT IS: 100 POINTS')
-    global louiselimit
 
 
 def game_math_subtract():
+    global louiselimit
     louiselimit = 300
     round.add(u'\n>> GAME SCORE LIMIT IS: 300 POINTS')
-    global louiselimit
 
 
 def game_math_multiply():
+    global louiselimit
     louiselimit = 500
     round.add(u'\n>> GAME SCORE LIMIT IS: 500 POINTS')
-    global louiselimit
 
 
 def game_math_add_variant():
+    global louiselimit
     louiselimit = 1000
     round.add(u'\n>> GAME SCORE LIMIT IS: 1000 POINTS')
-    global louiselimit
 
 
 def game_math_subtract_variant():
@@ -1776,27 +1776,27 @@ def game_math_subtract_variant():
 
 
 def game_math_multiply_variant():
+    global louiselimit
     louiselimit = 9999999
     round.add(u'\n>> GAME SCORE LIMIT IS: ENDLESS!!!')
-    global louiselimit
 
 
 def game_tagalog():
+    global louiselimit
     louiselimit = 2000
     round.add(u'\n>> GAME SCORE LIMIT IS: 2000 POINTS')
-    global louiselimit
 
 
 def game_love():
+    global louiselimit
     louiselimit = 3000
     round.add(u'\n>> GAME SCORE LIMIT IS: 3000 POINTS')
-    global louiselimit
 
 
 def game_summon_night():
+    global louiselimit
     louiselimit = 4000
     round.add(u'\n>> GAME SCORE LIMIT IS: 4000 POINTS')
-    global louiselimit
 
 
 
@@ -1804,6 +1804,7 @@ def game_summon_night():
 # MATH / WORD-HUNT GAMES
 # ===========================================================================
 def generate_addition_question():
+    global marklouise, word2, mark, louise, word1, louisemark
     marklouise = 'add'
     a1 = random.randint(0, 1000)
     a2 = random.randint(0, 1000)
@@ -1818,10 +1819,10 @@ def generate_addition_question():
     louisemark = word1
     apply_twist(word1)
     repost_addition()
-    global marklouise, word2, mark, louise, word1, louisemark
 
 
 def repost_addition():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -1834,11 +1835,11 @@ def repost_addition():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 markdecoy = []
 def generate_subtraction_question():
+    global marklouise, word2, mark, louise, word1, louisemark
     marklouise = 'minus'
     a1 = random.randint(0, 1000)
     a2 = random.randint(0, 1000)
@@ -1852,11 +1853,11 @@ def generate_subtraction_question():
     apply_twist(word1)
     louisemark = word1
     repost_subtraction()
-    global marklouise, word2, mark, louise, word1, louisemark
 
 
 marklouka = ''
 def repost_subtraction():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -1869,10 +1870,10 @@ def repost_subtraction():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def generate_multiplication_question():
+    global marklouise, word2, mark, louise, word1, louisemark
     marklouise = 'multiply'
     a1 = random.randint(1, 100)
     a2 = random.randint(1, 10)
@@ -1886,10 +1887,10 @@ def generate_multiplication_question():
     apply_twist(word1)
     louisemark = word1
     repost_multiplication()
-    global marklouise, word2, mark, louise, word1, louisemark
 
 
 def repost_multiplication():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -1902,11 +1903,11 @@ def repost_multiplication():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 wordx = ''
 def generate_love_word_question():
+    global marklouise, word1, louisemark
     marklouise = 'love'
     while True : 
         word3 = get_english_word(random.randint(1, 22500))
@@ -1919,10 +1920,10 @@ def generate_love_word_question():
             break
         else : 
             pass
-    global marklouise, word1, louisemark
 
 
 def generate_addition_variant():
+    global marklouise, word2, mark, louise, word1, louisemark, xlouise
     marklouise = 'add1'
     a1 = random.randint(0, 1000)
     a2 = random.randint(0, 1000)
@@ -1937,11 +1938,11 @@ def generate_addition_variant():
     louisemark = word1
     xlouise = str(word8)
     repost_addition_variant()
-    global marklouise, word2, mark, louise, word1, louisemark, xlouise
 
 
 xlouise = ''
 def repost_addition_variant():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -1954,10 +1955,10 @@ def repost_addition_variant():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def generate_subtraction_variant():
+    global marklouise, word2, mark, louise, word1, louisemark, xlouise
     marklouise = 'minus1'
     a1 = random.randint(0, 1000)
     a2 = random.randint(0, 1000)
@@ -1972,10 +1973,10 @@ def generate_subtraction_variant():
     louisemark = word1
     xlouise = str(word8)
     repost_subtraction_variant()
-    global marklouise, word2, mark, louise, word1, louisemark, xlouise
 
 
 def repost_subtraction_variant():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -1988,10 +1989,10 @@ def repost_subtraction_variant():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def generate_multiplication_variant():
+    global marklouise, word2, mark, louise, word1, louisemark, xlouise
     marklouise = 'multiply1'
     a1 = random.randint(1, 10)
     a2 = random.randint(1, 100)
@@ -2006,10 +2007,10 @@ def generate_multiplication_variant():
     louisemark = word1
     xlouise = str(word8)
     repost_multiplication_variant()
-    global marklouise, word2, mark, louise, word1, louisemark, xlouise
 
 
 def repost_multiplication_variant():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2022,10 +2023,10 @@ def repost_multiplication_variant():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def repost_current_question():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2037,10 +2038,10 @@ def repost_current_question():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def repost_current_question_with_hint():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)    louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
     markyx = xmllouise.replace('#IDx#', str(random.randint(1, 999)))
@@ -2051,10 +2052,10 @@ def repost_current_question_with_hint():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def post_tagalog_question():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     if postcount >= 6 : 
@@ -2065,10 +2066,10 @@ def post_tagalog_question():
     post3 = markyx.replace('#MESS#', ttq)
     post2 = post3.replace('#MESSx#', ttq)    postcount = (postcount + 1)
     s1.send(post2)
-    global postcount
 
 
 def post_tagalog_question_variant():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     if postcount >= 6 : 
@@ -2080,10 +2081,10 @@ def post_tagalog_question_variant():
     post2 = post3.replace('#MESSx#', ttq)
     postcount = (postcount + 1)
     s1.send(post2)
-    global postcount
 
 
 def generate_tagalog_question():
+    global marklouise, word1, louisemark
     marklouise = 'filipino'
     while True : 
         word3 = get_tagalog_word(random.randint(1, 8820))
@@ -2094,10 +2095,10 @@ def generate_tagalog_question():
             apply_twist(word1)
             post_tagalog_question()
             break
-    global marklouise, word1, louisemark
 
 
 def apply_twist(word1):
+    global clue, word2
     clue = ''
     word2 = ''
     tempnum = ''
@@ -2113,10 +2114,10 @@ def apply_twist(word1):
                 word2 = (word2 + word1[r1])
                 clue = (clue + '*')
             pass
-    global clue, word2
 
 
 def send_clue(word1):
+    global clue
     clue1 = ''
     for i in range(len(word1)):
         r1 = random.randint(0, (len(word1) - 1))
@@ -2129,7 +2130,6 @@ def send_clue(word1):
             clue1 = (clue1 + clue[i])
     clue = clue1
     return clue1
-    global clue
 
 
 def send_group_message(data):
@@ -2156,6 +2156,7 @@ def welcome_bot(data):
     return repz
 
 def activate_game():
+    global masternick, postcount, mirrors
     rn = roombot
     while True : 
         data = s1.recv(1024)
@@ -2232,9 +2233,9 @@ def activate_game():
 #            round.add((u'\n' + Cmess))
         else : 
             pass
-    global masternick, postcount, mirrors
 
 def activate_game_session():
+    global masternick, postcount, mirrors
     rn = roombot
     while True : 
         data = s1.recv(1024)
@@ -2309,7 +2310,6 @@ def activate_game_session():
 #            round.add((u'\n' + Cmess))
         else : 
             pass
-    global masternick, postcount, mirrors
 
 
 def send_keepalive():
@@ -2319,13 +2319,13 @@ def send_keepalive():
 
 
 def send_keepalive_if_needed():
+    global postcount
     leavemark = leavelouise.replace('#ROOM#', roombot)
     markleave = leavemark.replace('#ROOMx#', challenge)
     byelouise = markleave.replace('#NICK#', last)
     louisebye = byelouise.replace('#NICKx#', name)
     s1.send(louisebye)
     postcount = 0
-    global postcount
 
 
 def leave_room_cleanup():
@@ -2342,9 +2342,9 @@ def show_status():
 
 
 def stop_game():
+    global gmbot
     n0t0leave11()
     gmbot = 'stop'
-    global gmbot
 
 
 def show_about():
@@ -2364,6 +2364,7 @@ def show_help():
 
 
 def change_nickname_prompt():
+    global name, lastdetermine
     name = appuifw.query(u'Challenger Nickname \n(MAX 12 characters)', 'text')
     lastdetermine = name
     if len(name) > 12 : 
@@ -2371,7 +2372,6 @@ def change_nickname_prompt():
         name = 'GameCore 4.5'
     else : 
         round.add((u'\n>> Your Challenger Nickname is: ' + name))
-    global name, lastdetermine
 
 
 louiselimit = 100
@@ -2419,6 +2419,7 @@ summonnightx = ''
 edgefencer = ''
 jeaneth = ''
 def generate_word_hunt():
+    global jeaneth, marklouise, edgefencer, marktrap1, marktrap2, word1, louisemark
     jeaneth = '[C01  TAGALOG WordHunt  ['
     marklouise = 'SummonNight2'
     edgefencer = '[C00 PH WordHunt: ['
@@ -2443,10 +2444,10 @@ def generate_word_hunt():
             else : 
                 pass
             pass
-    global jeaneth, marklouise, edgefencer, marktrap1, marktrap2, word1, louisemark
 
 
 def generate_word_hunt_question():
+    global jeaneth, marklouise, edgefencer, marktrap1, marktrap2, word1, louisemark
     jeaneth = '[C01  ENGLISH WordHunt  ['
     marklouise = 'SummonNight'
     edgefencer = '[C00 ENG WordHunt: ['
@@ -2471,10 +2472,10 @@ def generate_word_hunt_question():
             else : 
                 pass
             pass
-    global jeaneth, marklouise, edgefencer, marktrap1, marktrap2, word1, louisemark
 
 
 def generate_word_hunt_variant():
+    global summonnightx, markloua, markloub, marklouc, markloud, markloue, marklouf, markloug, marklouh, markloui, marklouj, marklouk, markloul, markloum, markloun, marklouo, markloup, marklouq, marklour, marklous, marklout, marklouu, marklouv, marklouw, markloux, marklouy, marklouz, marklouaw, markloubw, markloucw, markloudw, marklouew, markloufw, marklougw, marklouhw, marklouiw, markloujw, markloukw, markloulw, markloumw, marklounw, marklouow, markloupw, marklouqw, marklourw, marklousw, markloutw, marklouuw, marklouvw, marklouww, marklouxw, marklouyw, marklouzw, marklouaa, marklouba, marklouca, marklouda, marklouea, markloufa, marklouga, marklouha, marklouia, marklouja
     summonnightx = random.choice(craftknight)
     markloua = random.choice(summonnight)
     markloub = random.choice(summonnight2)
@@ -2539,11 +2540,11 @@ def generate_word_hunt_variant():
     marklouia = random.choice(summonnight)
     marklouja = random.choice(summonnight2)
     word_hunt_answer_check()
-    global summonnightx, markloua, markloub, marklouc, markloud, markloue, marklouf, markloug, marklouh, markloui, marklouj, marklouk, markloul, markloum, markloun, marklouo, markloup, marklouq, marklour, marklous, marklout, marklouu, marklouv, marklouw, markloux, marklouy, marklouz, marklouaw, markloubw, markloucw, markloudw, marklouew, markloufw, marklougw, marklouhw, marklouiw, markloujw, markloukw, markloulw, markloumw, marklounw, marklouow, markloupw, marklouqw, marklourw, marklousw, markloutw, marklouuw, marklouvw, marklouww, marklouxw, marklouyw, marklouzw, marklouaa, marklouba, marklouca, marklouda, marklouea, markloufa, marklouga, marklouha, marklouia, marklouja
 
 marktrap1 = ''
 marktrap2 = ''
 def word_hunt_answer_check():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2629,7 +2630,6 @@ def word_hunt_answer_check():
         if postcount >= 6 : 
             send_keepalive_if_needed()
         pass
-    global postcount
 
 
 markread = u'e:\\Python\\Zgen-info.txt'
@@ -2645,6 +2645,7 @@ louiselow = 'Mark Louise'
 # TRIVIA / GTA / ANIME
 # ===========================================================================
 def generate_trivia_question():
+    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
     marklouise = 'generate_trivia_question'
     from string import strip as strip
     data = []
@@ -2682,10 +2683,10 @@ def generate_trivia_question():
                         repost_trivia()
                     pass
             break
-    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
 
 
 def repost_trivia():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2696,10 +2697,10 @@ def repost_trivia():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def clue_trivia():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2717,7 +2718,6 @@ def clue_trivia():
         s1.send(post2x)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 gtaforeignpath = u'e:\\Python\\Zgta-foreign.txt'
@@ -2726,6 +2726,7 @@ gtaforeignread = generate_gta_foreign_question.readlines()
 generate_gta_foreign_question.close()
 gtadecoy1 = []
 def generate_gta_foreign_question():
+    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
     marklouise = 'generate_gta_foreign_question'
     from string import strip as strip
     data = []
@@ -2759,7 +2760,6 @@ def generate_gta_foreign_question():
                     qcount = (qcount + 1)
                     repost_gta_foreign_variant()
             break
-    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
 
 
 gtaopmpath = u'e:\\Python\\Zgta-opm.txt'
@@ -2768,6 +2768,7 @@ gtaopmread = generate_gta_opm_question.readlines()
 generate_gta_opm_question.close()
 gtadecoy2 = []
 def generate_gta_opm_question():
+    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
     marklouise = 'generate_gta_opm_question'
     from string import strip as strip
     data = []
@@ -2801,10 +2802,10 @@ def generate_gta_opm_question():
                     qcount = (qcount + 1)
                     repost_gta_foreign_variant()
             break
-    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
 
 
 def repost_gta_foreign_variant():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2816,10 +2817,10 @@ def repost_gta_foreign_variant():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 def repost_gta_foreign():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2837,7 +2838,6 @@ def repost_gta_foreign():
     postcount = (postcount + 1)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 markanime = u'e:\\Python\\Zanime-trivia.txt'
@@ -2846,6 +2846,7 @@ animemark = louiseanime.readlines()
 louiseanime.close()
 animedecoy = []
 def generate_anime_trivia():
+    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
     marklouise = 'anime'
     from string import strip as strip
     data = []
@@ -2878,10 +2879,10 @@ def generate_anime_trivia():
                         repost_trivia()
                     pass
             break
-    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
 
 
 def clue_anime_trivia():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -2899,7 +2900,6 @@ def clue_anime_trivia():
         s1.send(post2x)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 
 
@@ -2948,6 +2948,7 @@ def select_random_game():
 
 
 def select_random_game_variant():
+    global marklouise
     if markxxxxlouise == 'randomgta' : 
         marklouisen = random.choice(randomgta)
         marklouise = marklouisen
@@ -2990,9 +2991,9 @@ def select_random_game_variant():
         select_random_game()
     if markxxxxlouise == 'generate_logic_question' : 
         select_random_game()
-    global marklouise
 
 def check_correct_answer():
+    global postcount, louisescore
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -3007,7 +3008,6 @@ def check_correct_answer():
         send_keepalive_if_needed()
     louisescore = 10
     select_random_game()
-    global postcount, louisescore
 
 
 logicpath = u'e:\\Python\\Zlogic.txt'
@@ -3021,6 +3021,7 @@ logicdecoy = []
 # LOGIC / ALGEBRA
 # ===========================================================================
 def generate_logic_question():
+    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
     marklouise = 'generate_logic_question'
     from string import strip as strip
     data = []
@@ -3057,10 +3058,10 @@ def generate_logic_question():
                         repost_trivia()
                     pass
             break
-    global marklouise, rd, markquest, word1, louisemark, louiselow, qcount
 
 
 def clue_logic():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -3077,9 +3078,10 @@ def clue_logic():
         s1.send(post2x)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 def generate_algebra_1():
+    global word2, mark, louise, markxxx, markyyy
+    global word1, louisemark, marklouise
     marklouise = 'generate_algebra_1'
     a1 = random.randint(0, 10)
     a2 = random.randint(1, 10)
@@ -3094,7 +3096,6 @@ def generate_algebra_1():
     markxxx = str(a3)
     markyyy = str(a4)
 
-    global word2, mark, louise, markxxx, markyyy
     word6 = +a1
     word7 = +a2
     mark6x = +a3
@@ -3106,11 +3107,11 @@ def generate_algebra_1():
 
     word1 = str(mariz)
     louisemark = str(mariz)
-    global word1, louisemark, marklouise
     apply_twist(word1)
     repost_algebra_1()
 
 def repost_algebra_1():
+    global postcount
     marky = xmlmark.replace('#ROOM#', roombot)
     louisey = marky.replace('#ROOMx#', challenge)
     xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
@@ -3123,11 +3124,11 @@ def repost_algebra_1():
     s1.send(post2)
     if postcount >= 6 : 
         send_keepalive_if_needed()
-    global postcount
 
 algebrax = ('generate_algebra_1', 'generate_algebra_2', 'generate_algebra_3')
 
 def generate_algebra_2():
+    global word2, mark, louise, markxxx, markyyy
     marklouise = 'generate_algebra_2'
     a1 = random.randint(0, 10)
     a2 = random.randint(1, 10)
@@ -3138,7 +3139,6 @@ def generate_algebra_2():
     louise = str(a2)
     markxxx = str(a3)
     markyyy = str(a4)
-    global word2, mark, louise, markxxx, markyyy
     word6 = +a1
     word7 = +a2
     mark6x = +a3
