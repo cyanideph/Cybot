@@ -130,17 +130,19 @@ def test_generated_math_questions_are_not_repeated():
 def test_random_game_cycle_uses_each_type_once_before_reset():
     e=GameEngine()
     s=e.start("cycle-room","randomgta",10,100)
-    first_cycle=[]
-    for _ in range(len(set(e.RANDOM_GTA))):
-        first_cycle.append(e._choose_random_game(s))
+    cycle_types=set(e.RANDOM_GTA)
+    first_cycle=list(s.cycle_games_used)
+    while len(set(s.cycle_games_used)) < len(cycle_types):
+        e._choose_random_game(s)
+        first_cycle=list(s.cycle_games_used)
 
-    assert set(first_cycle)==set(e.RANDOM_GTA)
-    assert len(first_cycle)==len(set(first_cycle))
+    assert set(first_cycle)==cycle_types
+    assert len(first_cycle)==len(cycle_types)
     assert s.cycle_number==1
 
     next_game=e._choose_random_game(s)
     assert s.cycle_number==2
-    assert next_game in set(e.RANDOM_GTA)
+    assert next_game in cycle_types
     assert s.cycle_games_used==[next_game]
 
 
