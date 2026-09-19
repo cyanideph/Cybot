@@ -35,6 +35,11 @@ class GeminiDecisionClient:
         text = str(conversation or "").strip()
         if not text:
             return GeminiDecisionResult(False, error="empty_conversation")
+
+        # google-genai 2.x rejects JSON Schema union types such as
+        # {"type": ["string", "null"]} when passed through response_schema.
+        # Use an empty string as the explicit "no game" value instead.
+        # DecisionEngine already treats "" as equivalent to None.
         schema = {
             "type": "object",
             "properties": {
@@ -45,7 +50,7 @@ class GeminiDecisionClient:
                 ]},
                 "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                 "action": {"type": "string", "enum": ["suggest_game", "chat", "none"]},
-                "game": {"type": ["string", "null"]},
+                "game": {"type": "string"},
                 "response": {"type": "string"}
             },
             "required": ["should_intervene", "topic", "confidence", "action", "game", "response"],
@@ -54,7 +59,13 @@ class GeminiDecisionClient:
         prompt = (
             "You are the decision layer for UzzapBot. Analyze the recent room conversation. "
             "Never invent facts, never claim to be human, and never execute commands. "
-            "Only suggest one of the existing Uzzap games. Keep response empty when action is none. "
+            "Only suggest one of the existing Uzzap games. "
+            "For action=suggest_game, put the selected game name in game. "
+            "For action=chat or action=none, set game to an empty string. "
+            "Keep response empty when action is none. "
+            "Respond in the dominant language of the room; if the conversation is Filipino/Tagalog, "
+            "use natural Filipino/Taglish; if English, use English; if mixed, use natural Taglish. "
+            "Do not unnecessarily translate or switch languages. "
             "Return only the requested structured result.\n\nRECENT ROOM:\n" + text[-6000:]
         )
         try:
@@ -71,6 +82,10 @@ class GeminiDecisionClient:
             decision = json.loads(raw)
             if not isinstance(decision, dict):
                 return GeminiDecisionResult(False, error="invalid_decision_shape")
+            # Normalize the schema's explicit empty-string sentinel to the
+            # existing internal representation used by the decision engine.
+            if decision.get("game") == "":
+                decision["game"] = None
             return GeminiDecisionResult(True, decision=decision)
         except Exception as exc:
             return GeminiDecisionResult(False, error=f"{type(exc).__name__}: {exc}")
