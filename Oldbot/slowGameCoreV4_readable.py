@@ -760,7 +760,7 @@ def receive_packets():
                 postcount = (postcount + 1)
                 round.add(u'\n>>mirror on')
                 mirrors = 'yes'
-                global mirrors
+    global mirrors
                 activate_game_session()
 
 
@@ -3147,84 +3147,3 @@ def generate_algebra_2():
     word8 = (word6 * mark6x)
     word88 = (word7 * mark7y)
     mariz = (word8 - word88)
-
-    word1 = str(mariz)
-    louisemark = str(mariz)
-    global word1, louisemark, marklouise
-    apply_twist(word1)
-    repost_algebra_2()
-
-def repost_algebra_2():
-    marky = xmlmark.replace('#ROOM#', roombot)
-    louisey = marky.replace('#ROOMx#', challenge)
-    xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
-    markyx = xmllouise.replace('#IDx#', str(random.randint(1, 999)))
-    rc1 = random.randint(100, 999)
-    ttq = ('' + '`   if  X=' + markxxx + '  &  Y=' + markyyy + '\n[' + str(rc1) + ' ALGEBRA: [000  ' + mark + 'x' + ' [c00  -  [000 '  +  louise + 'y' + ' = [c00 ?')
-    post3 = markyx.replace('#MESS#', ttq)
-    post2 = post3.replace('#MESSx#', ttq)
-    postcount = (postcount + 1)
-    s1.send(post2)
-    if postcount >= 6 : 
-        send_keepalive_if_needed()
-    global postcount
-
-
-
-
-
-def generate_algebra_3():
-    marklouise = 'generate_algebra_3'
-    a1 = random.randint(1, 6)
-    a2 = random.randint(1, 5)
-    a3 = random.randint(1, 5)
-    a4 = random.randint(1, 6)
-
-
-
-    word2 = str(a1)
-    mark = str(a1)
-    louise = str(a2)
-    markxxx = str(a3)
-    markyyy = str(a4)
-
-    global word2, mark, louise, markxxx, markyyy
-    word6 = +a1
-    word7 = +a2
-    mark6x = +a3
-    mark7y = +a4
-
-    word8 = (word6 * mark6x)
-    word88 = (word7 * mark7y)
-    mariz = (word8 * word88)
-
-    word1 = str(mariz)
-    louisemark = str(mariz)
-    global word1, louisemark, marklouise
-    apply_twist(word1)
-    repost_algebra_3()
-
-def repost_algebra_3():
-    marky = xmlmark.replace('#ROOM#', roombot)
-    louisey = marky.replace('#ROOMx#', challenge)
-    xmllouise = louisey.replace('#ID#', str(random.randint(1, 999)))
-    markyx = xmllouise.replace('#IDx#', str(random.randint(1, 999)))
-    rc1 = random.randint(100, 999)
-    ttq = ('`' + '    if  X=' + markxxx + '  &  Y=' + markyyy + '\n[' + str(rc1) + ' ALGEBRA: [000  ' + mark + 'x' + '  [c00 *  [000 ' + louise + 'y' + ' = [c00 ?')
-    post3 = markyx.replace('#MESS#', ttq)
-    post2 = post3.replace('#MESSx#', ttq)
-    postcount = (postcount + 1)
-    s1.send(post2)
-    if postcount >= 6 : 
-        send_keepalive_if_needed()
-    global postcount
-
-
-
-louisescore = 10
-menu1 = [(u'Log In to UzZAP', login_to_uzzap), (u'Help in GameCore!', show_help), (u'About GAME CORE', show_about_menu), (u'~> Special Thanks <~', show_special_thanks)]
-menu2 = [(u'Change Nickname', ((u'MaiN Nickname', change_nickname), (u'Challenger Name', change_nickname_prompt))), (u'Join Room [START GAME]', join_room), (u'CREATE NEW TRIVIA', show_about), (u'GAME SCORE LIMIT', ((u'100 POINTS', game_math_add), (u'300 POINTS', game_math_subtract), (u'500 POINTS', game_math_multiply), (u'1000 POINTS', game_math_add_variant), (u'2000 POINTS', game_tagalog), (u'3000 POINTS', game_love), (u'4000 POINTS', game_summon_night), (u'5000 POINTS', game_math_subtract_variant), (u'ENDLESS GAME', game_math_multiply_variant))), (u'Leave Room', leave_room), (u'Post Message', post_message_prompt), (u'Reveal ANSWER!', show_status), (u'Help in GameCore!', show_help), (u'About GAME CORE', show_about_menu), (u'~> Special Thanks <~', show_special_thanks)]
-appuifw.app.menu = menu1
-appuifw.app.exit_key_handler = exit_application
-app_lock = e32.Ao_lock()
-app_lock.wait()
