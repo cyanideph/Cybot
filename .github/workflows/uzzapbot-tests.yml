@@ -1,0 +1,33 @@
+name: UzzapBot Tests
+
+on:
+  push:
+    branches: [main, "fix/**"]
+    paths:
+      - "UzzapBot/**"
+      - ".github/workflows/uzzapbot-tests.yml"
+  pull_request:
+    paths:
+      - "UzzapBot/**"
+      - ".github/workflows/uzzapbot-tests.yml"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: UzzapBot
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest -q
