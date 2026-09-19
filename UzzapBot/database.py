@@ -84,6 +84,14 @@ class Database:
                 break
         return result
 
+    def mark_bot_activity(self, room: str) -> None:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        self.client.table("uzzapbot_room_activity").upsert(
+            {"room_name": room, "last_bot_activity_at": now, "updated_at": now},
+            on_conflict="room_name",
+        ).execute()
+
     def send(self, room_name: str, body: str) -> None:
         """Store bot output unchanged; Android owns all emoticon rendering."""
         body = str(body)
@@ -92,6 +100,63 @@ class Database:
             "room_bot_message",
             {"p_room": room_name, "p_body": body, "p_is_system": False},
         ).execute()
+        self.mark_bot_activity(room_name)
+
+    def load_room_activity(self) -> list[dict[str, Any]]:
+        return self.client.table("uzzapbot_room_activity").select(
+            "room_name,enabled,idle_threshold_seconds,inactive_threshold_seconds,cooldown_seconds,"
+            "max_messages_per_hour,max_messages_per_day,last_human_activity_at,last_bot_activity_at,"
+            "activity_state,human_message_count_hour,human_message_count_day"
+        ).execute().data or []
+
+    def save_room_activity(self, state: dict[str, Any]) -> None:
+        payload = {
+            "room_name": str(state["room_name"]),
+            "enabled": bool(state.get("enabled", False)),
+            "idle_threshold_seconds": int(state.get("idle_threshold_seconds", 900)),
+            "inactive_threshold_seconds": int(state.get("inactive_threshold_seconds", 3600)),
+            "cooldown_seconds": int(state.get("cooldown_seconds", 1800)),
+            "max_messages_per_hour": int(state.get("max_messages_per_hour", 3)),
+            "max_messages_per_day": int(state.get("max_messages_per_day", 20)),
+            "last_human_activity_at": state.get("last_human_activity_at"),
+            "last_bot_activity_at": state.get("last_bot_activity_at"),
+            "last_ai_analysis_at": state.get("last_ai_analysis_at"),
+            "activity_state": str(state.get("activity_state", "INACTIVE")),
+            "human_message_count_hour": int(state.get("human_message_count_hour", 0)),
+            "human_message_count_day": int(state.get("human_message_count_day", 0)),
+        }
+        self.client.table("uzzapbot_room_activity").upsert(payload, on_conflict="room_name").execute()
+
+    def recent_room_messages(self, room: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Return a small recent human-message window for optional AI analysis."""
+        rows = self.client.table("room_messages").select(
+            "id,sender,body,created_at,sender_id"
+        ).eq("room_name", room).order("id", desc=True).limit(max(1, min(int(limit), 50))).execute().data or []
+        bot_id = BOT_SENDER_ID
+        human = [r for r in rows if str(r.get("sender_id") or "") != bot_id and str(r.get("sender") or "").casefold() != BOT_NAME.casefold()]
+        return list(reversed(human))
+
+    def save_ai_event(self, event: dict[str, Any]) -> None:
+        payload = {
+            "room_name": str(event.get("room_name") or ""),
+            "event_type": str(event.get("event_type") or "decision"),
+            "dry_run": bool(event.get("dry_run", True)),
+            "topic": event.get("topic"),
+            "confidence": event.get("confidence"),
+            "action": event.get("action"),
+            "game": event.get("game"),
+            "allowed": event.get("allowed"),
+            "reason": event.get("reason"),
+            "response": event.get("response"),
+            "input_chars": int(event.get("input_chars") or 0),
+        }
+        self.client.table("uzzapbot_ai_events").insert(payload).execute()
+
+    def ai_requests_today(self) -> int:
+        from datetime import datetime, timezone
+        start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        rows = self.client.table("uzzapbot_ai_events").select("id").gte("created_at", start).limit(1001).execute().data or []
+        return len(rows)
 
     def get_room_settings(self, room: str) -> dict[str, Any]:
         defaults = {"activated": False, "locked": False, "wcbot": False,

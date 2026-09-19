@@ -1,9 +1,17 @@
 """Pydroid 3 entry point for UzzapBot."""
 from __future__ import annotations
 import logging,time
-from config import BOT_NAME,ADMIN_IDS,POLL_SECONDS,DEFAULT_POINTS,DEFAULT_LIMIT,validate
+from config import (
+    BOT_NAME, ADMIN_IDS, POLL_SECONDS, DEFAULT_POINTS, DEFAULT_LIMIT, validate,
+    AI_ENABLED, AI_IDLE_MINUTES, AI_INACTIVE_MINUTES, AI_COOLDOWN_MINUTES,
+    AI_MAX_MESSAGES_PER_HOUR, AI_MAX_MESSAGES_PER_DAY, AI_DRY_RUN,
+    AI_MAX_REQUESTS_PER_DAY, AI_MIN_CONFIDENCE, GEMINI_API_KEY, GEMINI_FLASH_MODEL,
+)
 from database import Database
 from game_engine import GameEngine
+from ai.activity_engine import ActivityEngine
+from ai.gemini_decision import GeminiDecisionClient
+from ai.decision_engine import DecisionEngine
 
 logging.basicConfig(level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s")
 log=logging.getLogger("uzzapbot")
@@ -147,12 +155,62 @@ def parse_command(text:str):
 
     return ["unknown",command]
 
+
+def run_ai_pass(db: Database, activity: ActivityEngine) -> None:
+    """Run optional AI analysis only for eligible quiet rooms."""
+    if not AI_ENABLED or not GEMINI_API_KEY:
+        return
+    if db.ai_requests_today() >= AI_MAX_REQUESTS_PER_DAY:
+        return
+    client = GeminiDecisionClient(GEMINI_API_KEY, GEMINI_FLASH_MODEL)
+    gate = DecisionEngine(AI_MIN_CONFIDENCE)
+    for room_name in list(activity.rooms):
+        eligibility = activity.eligibility(room_name)
+        if not eligibility["eligible"] or eligibility["state"] not in {"QUIET", "INACTIVE"}:
+            continue
+        recent = db.recent_room_messages(room_name, 20)
+        if not recent:
+            activity.get_or_create(room_name).record_ai_analysis()
+            db.save_room_activity(activity.snapshot(room_name))
+            continue
+        conversation = "\n".join(
+            f'{str(row.get("sender") or "user")}: {str(row.get("body") or "")[:500]}'
+            for row in recent
+        )
+        result = client.decide(conversation)
+        activity.get_or_create(room_name).record_ai_analysis()
+        db.save_room_activity(activity.snapshot(room_name))
+        if not result.ok:
+            db.save_ai_event({"room_name": room_name, "event_type": "decision_error", "dry_run": True,
+                              "reason": result.error, "input_chars": len(conversation)})
+            continue
+        decision = result.decision or {}
+        validated = gate.validate(decision)
+        db.save_ai_event({
+            "room_name": room_name, "event_type": "decision", "dry_run": AI_DRY_RUN,
+            "topic": decision.get("topic"), "confidence": decision.get("confidence"),
+            "action": decision.get("action"), "game": validated.get("game"),
+            "allowed": validated.get("allowed"), "reason": validated.get("reason"),
+            "response": validated.get("response"), "input_chars": len(conversation),
+        })
+        if not AI_DRY_RUN and validated.get("allowed") and validated.get("response"):
+            db.send(room_name, validated["response"])
 def main()->None:
     validate()
     db,games=Database(),GameEngine()
+    activity=ActivityEngine({
+        "enabled": AI_ENABLED,
+        "idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+        "inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+        "cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+        "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+        "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
+    })
+    restored_activity = activity.load(db.load_room_activity())
     restored=games.restore_all(db.load_game_state())
     seen_participants=set()
     db.poll_new_participants(seen_participants)
+    log.info("Restored %d room-activity state(s)",restored_activity)
     log.info("Restored %d persistent game session(s)",restored)
     log.info("%s connected; polling every %.1fs",BOT_NAME,POLL_SECONDS)
     while True:
@@ -174,6 +232,23 @@ def main()->None:
                 username=str(msg.get("sender") or "").strip()
                 uid=str(msg.get("sender_id") or "")
                 if not room or not text: continue
+                try:
+                    settings = db.get_room_settings(room)
+                    activity.record_human_message(
+                        room,
+                        settings={
+                            "enabled": AI_ENABLED,
+                            "idle_threshold_seconds": AI_IDLE_MINUTES * 60,
+                            "inactive_threshold_seconds": AI_INACTIVE_MINUTES * 60,
+                            "cooldown_seconds": AI_COOLDOWN_MINUTES * 60,
+                            "max_messages_per_hour": AI_MAX_MESSAGES_PER_HOUR,
+                            "max_messages_per_day": AI_MAX_MESSAGES_PER_DAY,
+                        },
+                    )
+                    db.save_room_activity(activity.snapshot(room))
+                except Exception:
+                    # Activity tracking must never break the existing bot.
+                    log.exception('ROOM ACTIVITY ERROR room="%s"', room)
                 try:
                     if not text.startswith("/"):
                         session=games.get(room)
@@ -285,6 +360,10 @@ def main()->None:
             time.sleep(POLL_SECONDS)
         except KeyboardInterrupt:
             log.info("Bot stopped by user"); return
+            try:
+                run_ai_pass(db, activity)
+            except Exception:
+                log.exception("AI PASS ERROR")
         except Exception:
             log.exception("Bot loop error; reconnecting"); time.sleep(max(POLL_SECONDS,2.0))
 
