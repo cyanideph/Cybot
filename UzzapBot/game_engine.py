@@ -1,6 +1,8 @@
 """Modern Pydroid-safe reconstruction of the legacy UzZAP Game Core 4 rules."""
 from __future__ import annotations
 import random, re, unicodedata
+from collections import Counter
+from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from pathlib import Path
 from config import DATA_DIR, DEFAULT_POINTS, DEFAULT_LIMIT
@@ -32,6 +34,7 @@ class Session:
     mode: str = ""
     endless: bool = False
     current_game: str = ""
+    recent_games: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.mode: self.mode = self.game
@@ -74,7 +77,18 @@ class GameEngine:
     def _normalize(self,value):
         value=unicodedata.normalize("NFKC",str(value))
         value=re.sub(r"\[[^\]]+\]","",value).casefold().strip()
+        value="".join(ch for ch in unicodedata.normalize("NFKD",value) if not unicodedata.combining(ch))
         return "".join(ch for ch in value if ch.isalnum())
+
+    def _answer_matches(self,guess,answer):
+        guess_n=self._normalize(guess); answer_n=self._normalize(answer)
+        if not guess_n or not answer_n: return False
+        if guess_n==answer_n: return True
+        if guess_n.isdigit() or answer_n.isdigit(): return False
+        if len(answer_n)<5 or len(guess_n)<4: return False
+        ratio=SequenceMatcher(None,guess_n,answer_n,autojunk=False).ratio()
+        threshold=0.92 if max(len(answer_n),len(guess_n))<=8 else 0.88
+        return ratio>=threshold
 
     def _parse_qa(self,rows):
         out=[]
@@ -89,7 +103,7 @@ class GameEngine:
         qa=self._parse_qa(rows)
         if not qa: raise ValueError("dataset has no valid question/answer rows")
         fresh=[x for x in qa if x[0] not in used and self._normalize(x[1]) not in used]
-        item=random.choice(fresh or qa)
+        item=random.choice(fresh if fresh else qa)
         used.add(item[0]); used.add(self._normalize(item[1]))
         return item
 
@@ -97,7 +111,7 @@ class GameEngine:
         words=[w.strip() for w in rows if len(w.strip())>=min_len and (max_len is None or len(w.strip())<=max_len)]
         if not words: raise ValueError("word dataset has no usable entries")
         fresh=[w for w in words if self._normalize(w) not in used]
-        word=random.choice(fresh or words); used.add(self._normalize(word)); return word
+        word=random.choice(fresh if fresh else words); used.add(self._normalize(word)); return word
 
     def _scramble(self,word):
         chars=list(word); original=self._normalize(word)
@@ -111,6 +125,17 @@ class GameEngine:
         pool={"random1":self.RANDOM1,"random2":self.RANDOM2,"random3":self.RANDOM3,
               "randomgta":self.RANDOM_GTA,"math":self.RANDOM_MATH,"algebra":self.RANDOM_ALGEBRA}[mode]
         return random.choice(pool)
+
+    def _choose_random_game(self,s):
+        pool={"random1":self.RANDOM1,"random2":self.RANDOM2,"random3":self.RANDOM3,
+              "randomgta":self.RANDOM_GTA,"math":self.RANDOM_MATH,"algebra":self.RANDOM_ALGEBRA}[s.mode]
+        counts=Counter(pool)
+        blocked=set(s.recent_games[-2:])
+        candidates=[g for g in counts if g not in blocked] or list(counts)
+        chosen=random.choices(candidates,weights=[counts[g] for g in candidates],k=1)[0]
+        s.recent_games.append(chosen)
+        s.recent_games=s.recent_games[-3:]
+        return chosen
 
     def start(self,room,game,points=None,limit=None,endless=False):
         requested=self.ALIASES.get(game.casefold(),game.casefold())
@@ -171,7 +196,7 @@ class GameEngine:
     def _next(self,s):
         if s.paused: return self.repost(s.room)
         s.number+=1
-        game=self._random_game(s.mode) if s.mode in {"random1","random2","random3","randomgta","math","algebra"} else s.mode
+        game=self._choose_random_game(s) if s.mode in {"random1","random2","random3","randomgta","math","algebra"} else s.mode
         self._build_question(s,game); return self.repost(s.room)
 
     def next_question(self,s): return "[c08]No active game." if not s else self._next(s)
@@ -209,7 +234,7 @@ class GameEngine:
         key=uid or username
         p=s.players.setdefault(key,Player(uid,username,nickname))
         p.nickname=nickname or p.nickname; p.username=username or p.username; p.attempts+=1
-        if self._normalize(text)==self._normalize(s.answer):
+        if self._answer_matches(text,s.answer):
             p.correct+=1; p.score+=s.points
             response=f"[c03]{self._personality(self.CORRECT_REPLIES,name=p.nickname,points=s.points)}"
             response+="\n"+(self.finish(s,p) if self._winner(s,p) else self._next(s))
@@ -274,7 +299,7 @@ class GameEngine:
         return {"room":s.room,"game":s.game,"mode":s.mode,"current_game":s.current_game,
                 "points":s.points,"limit":s.limit,"endless":s.endless,"paused":s.paused,
                 "question":s.question,"answer":s.answer,"clue_text":s.clue_text,"number":s.number,
-                "used_questions":list(s.used_questions), "clue_level":s.clue_level,
+                "used_questions":list(s.used_questions), "clue_level":s.clue_level, "recent_games":list(s.recent_games),
                 "players":[{"user_id":p.user_id,"username":p.username,"nickname":p.nickname,"score":p.score,"correct":p.correct,"attempts":p.attempts,"clues_used":p.clues_used} for p in s.players.values()]}
 
     def restore_state(self,state):
@@ -295,7 +320,7 @@ class GameEngine:
                   str(state.get("question") or ""),str(state.get("answer") or ""),
                   str(state.get("clue_text") or ""),int(state.get("clue_level") or 0),int(state.get("number") or 0),
                   mode=mode,endless=bool(state.get("endless")),
-                  current_game=str(state.get("current_game") or game or mode))
+                  current_game=str(state.get("current_game") or game or mode), recent_games=list(state.get("recent_games") or []))
         s.used_questions=set(state.get("used_questions") or [])
 
         for p in state.get("players") or []:
