@@ -22,22 +22,22 @@ HELP="""[c04]╔═════════════════════�
 [c16]/LEADERBOARD[c09] — Show leaderboard
 [c16]/VERSION[c09] — Show bot version
 
-[c14]━━ GAME COMMANDS ━━
-[c06]/TT ON[c09] — Text Twist
-[c06]/MATH ON[c09] — Math
-[c06]/TRIVIA ON[c09] — Trivia
-[c06]/ANIME ON[c09] — Anime
-[c06]/LOGIC ON[c09] — Logic
-[c06]/ALGEBRA ON[c09] — Algebra
-[c06]/PH ON[c09] — Philippine game
-[c06]/RANDOM QUIZ1[c09] — Random quiz 1
-[c06]/RANDOM QUIZ2[c09] — Random quiz 2
-[c06]/RANDOM QUIZ3[c09] — Random quiz 3
-[c06]/RANDOM GTA[c09] — Random GTA
-[c06]/GTA OPM[c09] — OPM GTA
-[c06]/GTA FOREIGN[c09] — Foreign GTA
-[c06]/ENGLISH WORDHUNT[c09] — English Wordhunt
-[c06]/TAGALOG WORDHUNT[c09] — Tagalog Wordhunt
+[c14]━━ PLAYER GAME COMMANDS ━━
+[c06]/TT ON[c09] — Start Text Twist
+[c06]/MATH ON[c09] — Start Math
+[c06]/TRIVIA ON[c09] — Start Trivia
+[c06]/ANIME ON[c09] — Start Anime
+[c06]/LOGIC ON[c09] — Start Logic
+[c06]/ALGEBRA ON[c09] — Start Algebra
+[c06]/PH ON[c09] — Start Philippine game
+[c06]/RANDOM QUIZ1[c09] — Start Random Quiz 1
+[c06]/RANDOM QUIZ2[c09] — Start Random Quiz 2
+[c06]/RANDOM QUIZ3[c09] — Start Random Quiz 3
+[c06]/RANDOM GTA[c09] — Start Random GTA
+[c06]/GTA OPM[c09] — Start OPM GTA
+[c06]/GTA FOREIGN[c09] — Start Foreign GTA
+[c06]/ENGLISH WORDHUNT[c09] — Start English Wordhunt
+[c06]/TAGALOG WORDHUNT[c09] — Start Tagalog Wordhunt
 
 [c03]━━ ADMIN COMMANDS ━━
 [c16]/STOP[c09] — Stop current game
@@ -191,8 +191,8 @@ def main()->None:
                     if not args: continue
                     admin=is_admin(msg)
                     sub=args[0].casefold()
-                    player_commands={"help","clue","repost","status","score","leaderboard","version"}
-                    admin_commands={"start","stop","pause","resume","next","reveal","activate","lock","unlock","wcbot","wmsg","challenge","challenge_off"}
+                    player_commands={"help","clue","repost","status","score","leaderboard","version","start"}
+                    admin_commands={"stop","pause","resume","next","reveal","activate","lock","unlock","wcbot","wmsg","challenge","challenge_off"}
                     log.info('COMMAND room="%s" sender="%s" body=%r admin=%s',room,username,text,admin)
 
                     if sub=="unknown" or sub=="invalid_command" or sub=="invalid_game_command":
