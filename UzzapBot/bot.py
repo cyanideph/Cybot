@@ -86,7 +86,8 @@ def parse_command(text:str):
     command=parts[0][1:].casefold()
     args=parts[1:]
 
-    # Exactly one official command per game.
+    # Exactly one official command per game. Multi-word game names are
+    # parsed as one command, not as alternate command routes.
     game_commands={
         "tt":"twist",
         "math":"math",
@@ -95,21 +96,26 @@ def parse_command(text:str):
         "logic":"logic",
         "algebra":"algebra",
         "ph":"filipino",
-        "random_quiz1":"random1",
-        "random_quiz2":"random2",
-        "random_quiz3":"random3",
-        "random_gta":"randomgta",
-        "gta_opm":"gtaopm",
-        "gta_foreign":"gtaforeign",
-        "english_wordhunt":"wordhunt",
-        "tagalog_wordhunt":"summonnight2",
     }
     if command in game_commands:
-        if not args or args[0].casefold() != "on":
-            return ["invalid_game_command", command]
-        if len(args) != 1:
+        if args != ["ON"] and not (len(args)==1 and args[0].casefold()=="on"):
             return ["invalid_game_command", command]
         return ["start", game_commands[command]]
+
+    multi_game_commands={
+        ("random","quiz1"):"random1",
+        ("random","quiz2"):"random2",
+        ("random","quiz3"):"random3",
+        ("random","gta"):"randomgta",
+        ("gta","opm"):"gtaopm",
+        ("gta","foreign"):"gtaforeign",
+        ("english","wordhunt"):"wordhunt",
+        ("tagalog","wordhunt"):"summonnight2",
+    }
+    if len(args)==1:
+        key=(command,args[0].casefold())
+        if key in multi_game_commands:
+            return ["start",multi_game_commands[key]]
 
     # Single official player/admin commands.
     simple_commands={
