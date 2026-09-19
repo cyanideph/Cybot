@@ -179,7 +179,7 @@ def main()->None:
                         elif sub=="version": db.send(room,"[c03]UzzapBot — Game Core 4 compatibility layer on the modern UzzapBot architecture.")
                         elif sub=="activate":
                             cfg=room_settings(room,db); cfg["activated"]=True; cfg["locked"]=False; save_room_settings(db,room)
-                            db.send(room,"[c10]UzzapBot ACTIVATED in this room.")
+                            db.send(room,"[c03]UzzapBot ACTIVATED in this room.")
                         elif sub=="lock":
                             cfg=room_settings(room,db); cfg["locked"]=True; save_room_settings(db,room)
                             s=games.get(room)
@@ -189,18 +189,18 @@ def main()->None:
                             cfg=room_settings(room,db); cfg["locked"]=False; save_room_settings(db,room)
                             s=games.get(room)
                             if s: s.paused=False; persist(db,games,room)
-                            db.send(room,"[c10]Systems UNLOCK!!! Game input is enabled in this room.")
+                            db.send(room,"[c03]Systems UNLOCK!!! Game input is enabled in this room.")
                         elif sub=="wcbot":
                             cfg=room_settings(room,db); cfg["wcbot"]=(len(args)>1 and args[1].casefold()=="on"); save_room_settings(db,room)
                             db.send(room,"[c03]Welcome bot " + ("ON." if cfg["wcbot"] else "OFF."))
                         elif sub=="wmsg":
                             cfg=room_settings(room,db); message=" ".join(args[1:]).strip()
                             if not message: db.send(room,"[c08]Usage: /wmsg <message>")
-                            else: cfg["welcome_message"]=message; save_room_settings(db,room); db.send(room,"[c10]Welcome message updated.")
+                            else: cfg["welcome_message"]=message; save_room_settings(db,room); db.send(room,"[c03]Welcome message updated.")
                         elif sub=="challenge":
                             cfg=room_settings(room,db); target=" ".join(args[1:]).strip()
                             if not target: db.send(room,"[c08]Usage: /challenge <room>")
-                            else: cfg["challenge_room"]=target; save_room_settings(db,room); db.send(room,f"[c10]Challenge room set to: {target}")
+                            else: cfg["challenge_room"]=target; save_room_settings(db,room); db.send(room,f"[c03]Challenge room set to: {target}")
                         elif sub=="challenge_off":
                             room_settings(room,db)["challenge_room"]=""; save_room_settings(db,room); db.send(room,"[c08]Challenge room disabled.")
                         elif sub=="mirror_off":
@@ -227,7 +227,7 @@ def main()->None:
                             s=games.get(room)
                             if not s: db.send(room,"[c08]No active game.")
                             else:
-                                s.paused=False; persist(db,games,room); db.send(room,"[c10]Game resumed.\n"+games.repost(room))
+                                s.paused=False; persist(db,games,room); db.send(room,"[c03]Game resumed.\n"+games.repost(room))
                         elif sub=="next":
                             db.send(room,games.next_question(games.get(room))); persist(db,games,room)
                         elif sub=="clue":
@@ -238,7 +238,7 @@ def main()->None:
                             s=games.get(room)
                             if not s: db.send(room,"[c08]No active game.")
                             else:
-                                db.send(room,f"[c0c]The Correct Answer is: [c10]{s.answer}")
+                                db.send(room,f"[c0c]The Correct Answer is: [c03]{s.answer}")
                                 db.send(room,games.next_question(s)); persist(db,games,room)
                         elif sub=="status": db.send(room,games.status(room))
                         elif sub=="score": db.send(room,games.score_text(room,uid))
