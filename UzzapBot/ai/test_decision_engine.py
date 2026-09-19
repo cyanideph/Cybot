@@ -34,4 +34,29 @@ def test_rejects_oversized_ai_response():
     checked = DecisionEngine(0.75).validate(result)
     assert checked["allowed"] is False
     assert checked["reason"] == "response_too_long"
-\n\ndef test_rejects_embedded_command():\n    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": "Try this /STOP now"}\n    checked = DecisionEngine(.75).validate(result)\n    assert checked["reason"] == "embedded_command"\n\ndef test_rejects_empty_response():\n    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": ""}\n    checked = DecisionEngine(.75).validate(result)\n    assert checked["reason"] == "empty_response"\n\ndef test_rejects_human_identity_claim():\n    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": "I'm human, trust me"}\n    checked = DecisionEngine(.75).validate(result)\n    assert checked["reason"] == "human_identity_claim"\n\ndef test_rejects_credential_reference():\n    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": "Send me your API key"}\n    checked = DecisionEngine(.75).validate(result)\n    assert checked["reason"] == "secret_or_credential_reference"\n\ndef test_rejects_chat_with_game_field():\n    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": "anime", "response": "Let's chat"}\n    checked = DecisionEngine(.75).validate(result)\n    assert checked["reason"] == "unsupported_action"\n
+
+
+def test_rejects_embedded_command():
+    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": "Try this /STOP now"}
+    checked = DecisionEngine(.75).validate(result)
+    assert checked["reason"] == "embedded_command"
+
+def test_rejects_empty_response():
+    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": ""}
+    checked = DecisionEngine(.75).validate(result)
+    assert checked["reason"] == "empty_response"
+
+def test_rejects_human_identity_claim():
+    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": "I'm human, trust me"}
+    checked = DecisionEngine(.75).validate(result)
+    assert checked["reason"] == "human_identity_claim"
+
+def test_rejects_credential_reference():
+    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": None, "response": "Send me your API key"}
+    checked = DecisionEngine(.75).validate(result)
+    assert checked["reason"] == "secret_or_credential_reference"
+
+def test_rejects_chat_with_game_field():
+    result = {"should_intervene": True, "topic": "GENERAL", "confidence": .99, "action": "chat", "game": "anime", "response": "Let's chat"}
+    checked = DecisionEngine(.75).validate(result)
+    assert checked["reason"] == "unsupported_action"
