@@ -28,6 +28,8 @@ HELP="""[c04]╔═════════════════════�
 [c16]/game start <game> [points] [score_limit]
 [c16]/game start <game> [points] endless
 [c16]/game stop[c09] — Stop the game
+[c16]/game on <game> [points] [score_limit][c09] — Start a game
+[c16]/game off[c09] — Stop the game
 [c16]/game pause[c09] — Pause the game
 [c16]/game resume[c09] — Resume the game
 [c16]/game next[c09] — Next question
@@ -37,14 +39,17 @@ HELP="""[c04]╔═════════════════════�
 [c16]/game status[c09] — Show game status
 [c16]/game score[c09] — Show score
 [c16]/game leaderboard[c09] — Show leaderboard
+[c09]Example: /game start trivia 1 10
+[c09]Endless: /game start trivia 1 endless
+[c09]Players are registered automatically when they answer during an active game; no /join command is required.
 [c14]GAME MODES[c09]
-[c06]/TT[c09] — Typing Test
-[c06]/MATH[c09] — Math game
-[c06]/TRIVIA[c09] — Trivia game
-[c06]/ANIME[c09] — Anime game
-[c06]/LOGIC[c09] — Logic game
-[c06]/ALGEBRA[c09] — Algebra game
-[c06]/PH[c09] — Philippine trivia
+[c06]/TT ON[c09] — Typing Test
+[c06]/MATH ON[c09] — Math game
+[c06]/TRIVIA ON[c09] — Trivia game
+[c06]/ANIME ON[c09] — Anime game
+[c06]/LOGIC ON[c09] — Logic game
+[c06]/ALGEBRA ON[c09] — Algebra game
+[c06]/PH ON[c09] — Philippine trivia
 [c06]/RANDOM QUIZ1[c09] — Random quiz set 1
 [c06]/RANDOM QUIZ2[c09] — Random quiz set 2
 [c06]/RANDOM QUIZ3[c09] — Random quiz set 3
@@ -53,6 +58,7 @@ HELP="""[c04]╔═════════════════════�
 [c06]/GTA FOREIGN[c09] — Foreign GTA
 [c06]/ENGLISH WORDHUNT[c09] — English Wordhunt
 [c06]/TAGALOG WORDHUNT[c09] — Tagalog Wordhunt
+[c09]All Game Core modes accept optional ON; they use the default points/score limit.
 
 [c16]/activate[c09] — Activate room
 [c16]/lock[c09] — Lock game input
