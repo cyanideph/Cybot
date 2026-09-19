@@ -126,6 +126,31 @@ class Database:
         }
         self.client.table("uzzapbot_room_activity").upsert(payload, on_conflict="room_name").execute()
 
+    def recent_room_messages(self, room: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Return a small recent human-message window for optional AI analysis."""
+        rows = self.client.table("room_messages").select(
+            "id,sender,body,created_at,sender_id"
+        ).eq("room_name", room).order("id", desc=True).limit(max(1, min(int(limit), 50))).execute().data or []
+        bot_id = BOT_SENDER_ID
+        human = [r for r in rows if str(r.get("sender_id") or "") != bot_id and str(r.get("sender") or "").casefold() != BOT_NAME.casefold()]
+        return list(reversed(human))
+
+    def save_ai_event(self, event: dict[str, Any]) -> None:
+        payload = {
+            "room_name": str(event.get("room_name") or ""),
+            "event_type": str(event.get("event_type") or "decision"),
+            "dry_run": bool(event.get("dry_run", True)),
+            "topic": event.get("topic"),
+            "confidence": event.get("confidence"),
+            "action": event.get("action"),
+            "game": event.get("game"),
+            "allowed": event.get("allowed"),
+            "reason": event.get("reason"),
+            "response": event.get("response"),
+            "input_chars": int(event.get("input_chars") or 0),
+        }
+        self.client.table("uzzapbot_ai_events").insert(payload).execute()
+
     def get_room_settings(self, room: str) -> dict[str, Any]:
         defaults = {"activated": False, "locked": False, "wcbot": False,
                     "welcome_message": "welcome to {room} {nickname}", "challenge_room": ""}
