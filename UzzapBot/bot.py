@@ -38,21 +38,21 @@ HELP="""[c04]╔═════════════════════�
 [c16]/game score[c09] — Show score
 [c16]/game leaderboard[c09] — Show leaderboard
 [c14]GAME MODES[c09]
-[c06]TT ON[c09] — Typing Test
-[c06]MATH ON[c09] — Math game
-[c06]TRIVIA ON[c09] — Trivia game
-[c06]ANIME ON[c09] — Anime game
-[c06]LOGIC ON[c09] — Logic game
-[c06]ALGEBRA ON[c09] — Algebra game
-[c06]PH ON[c09] — Philippine trivia
-[c06]RANDOM QUIZ1[c09] — Random quiz set 1
-[c06]RANDOM QUIZ2[c09] — Random quiz set 2
-[c06]RANDOM QUIZ3[c09] — Random quiz set 3
-[c06]RANDOM GTA[c09] — Random GTA set
-[c06]GTA OPM[c09] — OPM GTA
-[c06]GTA FOREIGN[c09] — Foreign GTA
-[c06]ENGLISH WORDHUNT[c09] — English Wordhunt
-[c06]TAGALOG WORDHUNT[c09] — Tagalog Wordhunt
+[c06]/TT[c09] — Typing Test
+[c06]/MATH[c09] — Math game
+[c06]/TRIVIA[c09] — Trivia game
+[c06]/ANIME[c09] — Anime game
+[c06]/LOGIC[c09] — Logic game
+[c06]/ALGEBRA[c09] — Algebra game
+[c06]/PH[c09] — Philippine trivia
+[c06]/RANDOM QUIZ1[c09] — Random quiz set 1
+[c06]/RANDOM QUIZ2[c09] — Random quiz set 2
+[c06]/RANDOM QUIZ3[c09] — Random quiz set 3
+[c06]/RANDOM GTA[c09] — Random GTA set
+[c06]/GTA OPM[c09] — OPM GTA
+[c06]/GTA FOREIGN[c09] — Foreign GTA
+[c06]/ENGLISH WORDHUNT[c09] — English Wordhunt
+[c06]/TAGALOG WORDHUNT[c09] — Tagalog Wordhunt
 
 [c16]/activate[c09] — Activate room
 [c16]/lock[c09] — Lock game input
