@@ -31,6 +31,20 @@ class Database:
             },
         ).execute()
         if not bool(r.data):
+            # Another worker (or a previous process instance) may have already
+            # advanced the durable cursor. Reconcile before treating this as a
+            # real failure; otherwise a stale local cursor can trap the worker
+            # in an endless reconnect loop on the same message.
+            durable_id = self._load_cursor()
+            if durable_id >= int(message_id):
+                log.warning(
+                    "Reconciled stale local cursor: local=%s durable=%s message=%s",
+                    previous_id,
+                    durable_id,
+                    message_id,
+                )
+                self.last_id = durable_id
+                return
             raise RuntimeError(
                 f"UzzapBot cursor advance rejected: expected {previous_id}, message {message_id}"
             )
@@ -54,6 +68,18 @@ class Database:
         can retry it.
         """
         result: list[dict[str, Any]] = []
+        # Reconcile a stale process-local cursor with the durable cursor before
+        # polling. This is important after restarts or when another worker has
+        # already consumed messages.
+        durable_id = self._load_cursor()
+        if durable_id > self.last_id:
+            log.warning(
+                "Synchronizing stale local cursor: local=%s durable=%s",
+                self.last_id,
+                durable_id,
+            )
+            self.last_id = durable_id
+
         while True:
             r = (
                 self.client.table("room_messages")
