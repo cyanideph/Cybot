@@ -28,7 +28,7 @@ def evaluate_feedback(
         if 0.0 <= value <= 1.0:
             confidence_values.append(value)
     mean_confidence = (
-        sum(confidence_values) / len(confidence_values)
+        round(sum(confidence_values) / len(confidence_values), 6)
         if confidence_values else 0.0
     )
     return {
